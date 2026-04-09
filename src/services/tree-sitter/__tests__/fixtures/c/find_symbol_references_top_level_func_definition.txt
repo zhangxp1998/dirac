@@ -1,0 +1,2 @@
+sample.c:
+  (top_level_func) int top_level_func(int x) {

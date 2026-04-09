@@ -1,0 +1,4 @@
+sample.swift:
+  (SwiftClass) class SwiftClass {
+  (SwiftClass)     let obj = SwiftClass(name: "example")
+  (SwiftClass) extension SwiftClass {

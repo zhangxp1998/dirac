@@ -1,0 +1,192 @@
+import { getDelimiter } from "../../../../utils/line-hashing"
+
+export const getEditingFilesInstructions = () => {
+	const delimiter = getDelimiter()
+	return `## EDITING FILES INSTRUCTIONS
+
+You have 3 file editing tools: \`write_to_file\` (for new files or complete overwrites), \`edit_file\` (for targeted edits) and \`replace_symbol\` (for direct AST manipulation such as replacing a function or a symbol). 
+
+\`replace_symbol\` has the lowest likelihood of errors since it updates the AST directly. Prefer it if the functions you want to replace are not too large. 
+
+### LINE-HASH PROTOCOL
+Every line returned by read tools (read_file, get_function, get_file_skeleton, search_files) follows the format: ANCHOR${delimiter}CONTENT
+
+- ANCHOR: An opaque word-based tag (e.g., "Apple") used for stable referencing.
+- CONTENT: The original line text, verbatim. Blank lines are shown as "ANCHOR${delimiter}".
+
+Example read output:
+Apple${delimiter}    def process(param1, param2):
+
+### CRITICAL RULES FOR ANCHORS
+1. FULL LINE MATCH: When providing \`anchor\` and \`end_anchor\`, you MUST include the ENTIRE line exactly as it appears in the read tool (Anchor Word + Delimiter + Content).
+   - Correct: "Apple${delimiter}    def process(data):"
+   - Incorrect: "Apple" or "Apple${delimiter}"
+2. ORDERING: \`anchor\` MUST appear before or be the exact same line as \`end_anchor\` in the file.
+
+### CRITICAL RULES FOR EDITING
+1. INDENTATION: You are strictly responsible for indentation. \`replace\` destroys the original lines, so your \`text\` parameter MUST include the correct leading spaces for every single line you insert.
+2. NO ANCHORS IN TEXT: The \`text\` parameter represents the raw, final code. NEVER include Anchor words or delimiters inside \`text\`.
+3. THE MOST COMMON error type is not balancing braces/indents. You edits must make sure the you neither omit a closing brace not emit an extra closing brace. 
+4. NON-OVERLAPPING: Multiple edits in the same file MUST NOT overlap.
+
+### edit_file OPERATIONS
+The \`edit_file\` tool supports three operations via the \`edit_type\` parameter:
+- \`replace\`: Replaces an inclusive range of lines from \`anchor\` to \`end_anchor\`.
+  * MULTI-LINE: You can replace a large block of code with a new multi-line block by using \`\\n\` in your \`text\` parameter.
+  * SINGLE LINE: To replace or delete a single line, use that exact same line for BOTH \`anchor\` and \`end_anchor\`.
+  * DELETE: To delete the range cleanly without leaving blank lines, use \`text: ""\`.
+- \`insert_after\`: Inserts \`text\` as new line(s) immediately after \`anchor\`.
+- \`insert_before\`: Inserts \`text\` as new line(s) immediately before \`anchor\`.
+
+### EXAMPLES
+
+#### Multi-Line Block Replacement
+When replacing a block of code with a new multi-line block, you must provide all newlines (\`\\n\`) and exact indentations within the \`text\` parameter.
+
+Original Code:
+\`\`\`
+Apple${delimiter}    def fetch_data(url):
+Brave${delimiter}        res = requests.get(url)
+Cider${delimiter}        if res.status_code == 200:
+Delta${delimiter}            return res.json()
+Eagle${delimiter}        return None
+\`\`\`
+
+Invoke \`edit_file\` with:
+\`\`\`json
+{
+  "edit_type": "replace",
+  "anchor": "Brave${delimiter}        res = requests.get(url)",
+  "end_anchor": "Eagle${delimiter}        return None",
+  "text": "        try:\\n            res = requests.get(url, timeout=5)\\n            res.raise_for_status()\\n            return res.json()\\n        except requests.RequestException:\\n            return None"
+}
+\`\`\`
+*(Note: The \`text\` parameter explicitly includes the 8-space and 12-space indentations required for the new Python code, separated by \`\\n\`.)*
+
+#### Single-Line Delete
+To delete a specific line cleanly, match the anchor and end_anchor, and pass an empty string.
+
+Original Code:
+\`\`\`
+Apple${delimiter}        print("debug")
+\`\`\`
+
+Invoke \`edit_file\` with:
+\`\`\`json
+{
+  "edit_type": "replace",
+  "anchor": "Apple${delimiter}        print(\\"debug\\")",
+  "end_anchor": "Apple${delimiter}        print(\\"debug\\")",
+  "text": ""
+}
+\`\`\`
+
+#### Batched Multi-File Edit
+To add imports, simplify logic, or refactor across multiple files, use the \`files\` parameter. 
+
+Original Code (src/calculator.py):
+\`\`\`
+Apple${delimiter}def calculate_total(items):
+Brave${delimiter}    total = 0
+Cider${delimiter}    for item in items:
+Delta${delimiter}        if item.price > 0:
+Eagle${delimiter}            total += item.price
+Fox${delimiter}    return total
+\`\`\`
+
+Original Code (src/user.ts):
+\`\`\`
+Grape${delimiter}interface User {
+Hazel${delimiter}  id: string;
+Index${delimiter}  name: string;
+Joker${delimiter}  email: string;
+Karma${delimiter}  age: number;
+Lemon${delimiter}}
+Mango${delimiter}
+Nacho${delimiter}export function getUserDisplayName(user: User): string {
+Ocean${delimiter}  if (!user.name) {
+Piano${delimiter}    return "Anonymous";
+Quail${delimiter}  }
+River${delimiter}  return user.name;
+Snake${delimiter}}
+\`\`\`
+
+Invoke edit_file with:
+\`\`\`json
+{
+  "files": [
+    {
+      "path": "src/calculator.py",
+      "edits":[
+        {
+          "edit_type": "insert_before",
+          "anchor": "Apple${delimiter}def calculate_total(items):",
+          "text": "from typing import List\\n"
+        },
+        {
+          "edit_type": "replace",
+          "anchor": "Brave${delimiter}    total = 0",
+          "end_anchor": "Eagle${delimiter}            total += item.price",
+          "text": "    total = sum(item.price for item in items if item.price > 0)"
+        }
+      ]
+    },
+    {
+      "path": "src/user.ts",
+      "edits":[
+        {
+          "edit_type": "replace",
+          "anchor": "Karma${delimiter}  age: number;",
+          "end_anchor": "Karma${delimiter}  age: number;",
+          "text": ""
+        },
+        {
+          "edit_type": "replace",
+          "anchor": "Ocean${delimiter}  if (!user.name) {",
+          "end_anchor": "River${delimiter}  return user.name;",
+          "text": "  return user.name ? user.name : \\"Anonymous\\";"
+        },
+        {
+          "edit_type": "insert_after",
+          "anchor": "Snake${delimiter}}",
+          "text": "\\nexport function isAnonymous(user: User): boolean {\\n  return !user.name;\\n}"
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+Transformed Code (src/calculator.py):
+\`\`\`python
+# ---> CONSEQUENCE: \`insert_before\` Apple. The \\n in the text created the blank line (Zebra).
+Yacht${delimiter}from typing import List
+Zebra${delimiter}
+Apple${delimiter}def calculate_total(items):
+# ---> CONSEQUENCE: \`replace\` Brave through Eagle. The 4-space indentation was explicitly provided in the text.
+Aero${delimiter}    total = sum(item.price for item in items if item.price > 0)
+Fox${delimiter}    return total
+\`\`\`
+
+Transformed Code (src/user.ts):
+\`\`\`typescript
+Grape${delimiter}interface User {
+Hazel${delimiter}  id: string;
+Index${delimiter}  name: string;
+Joker${delimiter}  email: string;
+// ---> CONSEQUENCE: Karma was deleted cleanly because \`text\` was "". No blank line remains.
+Lemon${delimiter}}
+Mango${delimiter}
+Nacho${delimiter}export function getUserDisplayName(user: User): string {
+// ---> CONSEQUENCE: \`replace\` Ocean through River. We carefully did NOT include Snake (the closing brace) in \`end_anchor\`, so it remains intact below.
+Bison${delimiter}  return user.name ? user.name : "Anonymous";
+Snake${delimiter}}
+// ---> CONSEQUENCE: \`insert_after\` Snake. The \\n at the start of the text created the blank line (Camel).
+Camel${delimiter}
+Dart${delimiter}export function isAnonymous(user: User): boolean {
+Echo${delimiter}  return !user.name;
+Flare${delimiter}}
+\`\`\`
+
+`
+}

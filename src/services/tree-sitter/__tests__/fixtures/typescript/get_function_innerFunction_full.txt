@@ -1,0 +1,8 @@
+sample.ts::innerFunction
+[Function Hash: 2e53f92a]
+/**
+	 * Inner function.
+	 */
+	function innerFunction(y: number) {
+		return x + y
+	}

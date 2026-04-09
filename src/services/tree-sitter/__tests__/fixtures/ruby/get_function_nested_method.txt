@@ -1,0 +1,5 @@
+sample.rb::nested_method
+[Function Hash: 37e1a2ef]
+def nested_method
+      "nested"
+    end

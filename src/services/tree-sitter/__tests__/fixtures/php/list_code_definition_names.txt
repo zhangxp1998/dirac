@@ -1,0 +1,16 @@
+sample.php
+|----
+│class PhpClass
+|----
+│    public function __construct(string $name)
+|----
+│    public function getName(): string
+|----
+│    public function calculate(int $a, int $b): int
+|----
+│function top_level_func(int $x): int
+|----
+│class AnotherClass {
+│    public static function staticMethod() {
+|----
+

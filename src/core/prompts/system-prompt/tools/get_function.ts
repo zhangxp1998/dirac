@@ -1,0 +1,31 @@
+import { DiracDefaultTool } from "@/shared/tools"
+import type { DiracToolSpec } from "../spec"
+import { TASK_PROGRESS_PARAMETER } from "../types"
+
+const id = DiracDefaultTool.GET_FUNCTION
+
+export const get_function: DiracToolSpec = {
+	id,
+	name: "get_function",
+	description:
+		"Extracts the complete implementation of one or more functions or methods from one or more files. Use this to inspect specific functions' logic without reading the entire files. You can specify multiple files and multiple functions, it will return an all to all lookup result.",
+	parameters: [
+		{
+			name: "paths",
+			required: true,
+			type: "array",
+			items: { type: "string" },
+			instruction: "An array of relative paths to the source files.",
+			usage: '["src/utils/math.ts", "src/utils/string.ts"]',
+		},
+		{
+			name: "function_names",
+			required: true,
+			type: "array",
+			items: { type: "string" },
+			instruction: "Exact names of the functions or methods to extract.",
+			usage: '["calculateSum", "findMax"]',
+		},
+		TASK_PROGRESS_PARAMETER,
+	],
+}

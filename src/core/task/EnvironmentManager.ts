@@ -1,0 +1,392 @@
+import { setTimeout as setTimeoutPromise } from "node:timers/promises"
+import { ApiHandler } from "@core/api"
+import { getContextWindowInfo } from "@core/context/context-management/context-window-utils"
+import { FileContextTracker } from "@core/context/context-tracking/FileContextTracker"
+import { formatResponse } from "@core/prompts/responses"
+import { getEditingFilesInstructions } from "@core/prompts/system-prompt/sections/editing-files"
+import { StateManager } from "@core/storage/StateManager"
+import { isMultiRootEnabled } from "@core/workspace/multi-root-utils"
+import { WorkspaceRootManager } from "@core/workspace/WorkspaceRootManager"
+import { HostProvider } from "@hosts/host-provider"
+import { ITerminalManager } from "@integrations/terminal/types"
+import { findLast } from "@shared/array"
+import { combineApiRequests } from "@shared/combineApiRequests"
+import { combineCommandSequences } from "@shared/combineCommandSequences"
+import { DiracMessage } from "@shared/ExtensionMessage"
+import { filterExistingFiles } from "@utils/tabFiltering"
+import type { Dirent } from "fs"
+import fs from "fs/promises"
+import pWaitFor from "p-wait-for"
+import * as path from "path"
+import { MessageStateHandler } from "./message-state"
+import { TaskState } from "./TaskState"
+
+const CODE_EXTENSIONS = new Set([
+	".ts",
+	".tsx",
+	".js",
+	".jsx",
+	".mjs",
+	".cjs",
+	".html",
+	".css",
+	".scss",
+	".less",
+	".vue",
+	".svelte",
+	".py",
+	".rb",
+	".go",
+	".rs",
+	".java",
+	".kt",
+	".swift",
+	".c",
+	".cpp",
+	".h",
+	".hpp",
+	".cs",
+	".m",
+	".sh",
+	".bash",
+	".zsh",
+	".fish",
+	".yaml",
+	".yml",
+	".toml",
+	".env",
+	".sql",
+	".json",
+	".md",
+	".mdx",
+])
+
+const ALWAYS_IGNORED_DIRS = new Set(["node_modules", ".git", ".next", "dist", "build", "__pycache__", ".venv", "venv", ".cache"])
+
+export interface EnvironmentManagerDependencies {
+	cwd: string
+	terminalManager: ITerminalManager
+	taskState: TaskState
+	fileContextTracker: FileContextTracker
+	api: ApiHandler
+	messageStateHandler: MessageStateHandler
+	stateManager: StateManager
+	workspaceManager?: WorkspaceRootManager
+}
+
+export class EnvironmentManager {
+	private dependencies: EnvironmentManagerDependencies
+
+	constructor(dependencies: EnvironmentManagerDependencies) {
+		this.dependencies = dependencies
+	}
+
+	private get cwd() {
+		return this.dependencies.cwd
+	}
+	private get terminalManager() {
+		return this.dependencies.terminalManager
+	}
+	private get taskState() {
+		return this.dependencies.taskState
+	}
+	private get fileContextTracker() {
+		return this.dependencies.fileContextTracker
+	}
+	private get api() {
+		return this.dependencies.api
+	}
+	private get messageStateHandler() {
+		return this.dependencies.messageStateHandler
+	}
+	private get stateManager() {
+		return this.dependencies.stateManager
+	}
+	private get workspaceManager() {
+		return this.dependencies.workspaceManager
+	}
+
+	async getEnvironmentDetails(includeFileDetails = false): Promise<string> {
+		const host = await HostProvider.env.getHostVersion({})
+		let details = ""
+
+		// Workspace roots (multi-root)
+		details += this.formatWorkspaceRootsSection()
+
+		// It could be useful for dirac to know if the user went from one or no file to another between messages, so we always include this context
+		details += `\n\n# ${host.platform} Visible Files`
+		const rawVisiblePaths = (await HostProvider.window.getVisibleTabs({})).paths
+		const filteredVisiblePaths = await filterExistingFiles(rawVisiblePaths)
+		const visibleFilePaths = filteredVisiblePaths
+			.map((absolutePath) => path.relative(this.cwd, absolutePath))
+			.filter((relPath) => {
+				const parts = relPath.split(/[/\\]/)
+				const hasDotPart = parts.some((part) => part.startsWith("."))
+				const isLogOrTxt = relPath.toLowerCase().endsWith(".log") || relPath.toLowerCase().endsWith(".txt")
+				return !hasDotPart && !isLogOrTxt
+			})
+
+		for (const filePath of visibleFilePaths) {
+			details += `\n${filePath}`
+		}
+
+		const busyTerminals = this.terminalManager.getTerminals(true)
+		const inactiveTerminals = this.terminalManager.getTerminals(false)
+
+		if (busyTerminals.length > 0 && this.taskState.didEditFile) {
+			await setTimeoutPromise(300) // delay after saving file to let terminals catch up
+		}
+
+		if (busyTerminals.length > 0) {
+			// wait for terminals to cool down
+			await pWaitFor(() => busyTerminals.every((t) => !this.terminalManager.isProcessHot(t.id)), {
+				interval: 100,
+				timeout: 15_000,
+			}).catch(() => {})
+		}
+
+		this.taskState.didEditFile = false // reset, this lets us know when to wait for saved files to update terminals
+
+		// waiting for updated diagnostics lets terminal output be the most up-to-date possible
+		let terminalDetails = ""
+		if (busyTerminals.length > 0) {
+			// terminals are cool, let's retrieve their output
+			terminalDetails += "\n\n# Actively Running Terminals"
+			for (const busyTerminal of busyTerminals) {
+				terminalDetails += `\n## Original command: \`${busyTerminal.lastCommand}\``
+				const newOutput = this.terminalManager.getUnretrievedOutput(busyTerminal.id)
+				if (newOutput) {
+					terminalDetails += `\n### New Output\n${newOutput}`
+				}
+			}
+		}
+
+		// only show inactive terminals if there's output to show
+		if (inactiveTerminals.length > 0) {
+			const inactiveTerminalOutputs = new Map<number, string>()
+			for (const inactiveTerminal of inactiveTerminals) {
+				const newOutput = this.terminalManager.getUnretrievedOutput(inactiveTerminal.id)
+				if (newOutput) {
+					inactiveTerminalOutputs.set(inactiveTerminal.id, newOutput)
+				}
+			}
+			if (inactiveTerminalOutputs.size > 0) {
+				terminalDetails += "\n\n# Inactive Terminals"
+				for (const [terminalId, newOutput] of inactiveTerminalOutputs) {
+					const inactiveTerminal = inactiveTerminals.find((t) => t.id === terminalId)
+					if (inactiveTerminal) {
+						terminalDetails += `\n## ${inactiveTerminal.lastCommand}`
+						terminalDetails += `\n### New Output\n${newOutput}`
+					}
+				}
+			}
+		}
+
+		if (terminalDetails) {
+			details += terminalDetails
+		}
+
+		// Add recently modified files section
+		const recentlyModifiedFiles = this.fileContextTracker.getAndClearRecentlyModifiedFiles()
+		if (recentlyModifiedFiles.length > 0) {
+			details +=
+				"\n\n# Recently Modified Files\nThese files have been modified since you last accessed them (file was just edited so you may need to re-read it before editing):"
+			for (const filePath of recentlyModifiedFiles) {
+				const parts = filePath.split(/[/\\]/)
+				const hasDotPart = parts.some((part) => part.startsWith("."))
+				const isLogOrTxt = filePath.toLowerCase().endsWith(".log") || filePath.toLowerCase().endsWith(".txt")
+				if (hasDotPart || isLogOrTxt) {
+					continue
+				}
+				details += `\n${filePath}`
+			}
+		}
+
+		// Add current time information with timezone
+		const now = new Date()
+		const formatter = new Intl.DateTimeFormat(undefined, {
+			year: "numeric",
+			month: "numeric",
+			day: "numeric",
+			hour: "numeric",
+			minute: "numeric",
+			second: "numeric",
+			hour12: true,
+		})
+		const timeZone = formatter.resolvedOptions().timeZone
+		const timeZoneOffset = -now.getTimezoneOffset() / 60 // Convert to hours and invert sign to match conventional notation
+		const timeZoneOffsetStr = `${timeZoneOffset >= 0 ? "+" : ""}${timeZoneOffset}:00`
+		details += `\n\n# Current Time\n${formatter.format(now)} (${timeZone}, UTC${timeZoneOffsetStr})`
+
+		if (includeFileDetails) {
+			const MAX_RECENT_FILES = 10
+
+			// Merge hardcoded ignores with .gitignore entries so we skip generated/vendor dirs
+			const gitIgnoredNames = await this.getGitIgnoredNames()
+			const ignoredDirs = new Set([...ALWAYS_IGNORED_DIRS, ...gitIgnoredNames])
+
+			const fileStats: { relativePath: string; mtime: Date }[] = []
+			for await (const absPath of this.walkCodeFiles(this.cwd, ignoredDirs)) {
+				try {
+					const stat = await fs.stat(absPath)
+					fileStats.push({
+						relativePath: path.relative(this.cwd, absPath),
+						mtime: stat.mtime,
+					})
+				} catch {
+					// File removed between walk and stat — skip
+				}
+			}
+
+			fileStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())
+			const recent = fileStats.slice(0, MAX_RECENT_FILES)
+
+			if (recent.length > 0) {
+				details += `\n\n# Latest ${MAX_RECENT_FILES} edited files in this workspace`
+				for (const { relativePath, mtime } of recent) {
+					details += `\n${relativePath.toPosix()}  ${EnvironmentManager.relativeTime(mtime)}`
+				}
+			}
+		}
+
+		// Add context window usage information (conditionally for some models)
+		const { contextWindow } = getContextWindowInfo(this.api)
+
+		const getTotalTokensFromApiReqMessage = (msg: DiracMessage) => {
+			if (!msg.text) {
+				return 0
+			}
+			try {
+				const { tokensIn, tokensOut, cacheWrites, cacheReads } = JSON.parse(msg.text)
+				return (tokensIn || 0) + (tokensOut || 0) + (cacheWrites || 0) + (cacheReads || 0)
+			} catch (_e) {
+				return 0
+			}
+		}
+
+		const diracMessages = this.messageStateHandler.getDiracMessages()
+		const modifiedMessages = combineApiRequests(combineCommandSequences(diracMessages.slice(1)))
+		const lastApiReqMessage = findLast(modifiedMessages, (msg) => {
+			if (msg.say !== "api_req_started") {
+				return false
+			}
+			return getTotalTokensFromApiReqMessage(msg) > 0
+		})
+
+		const lastApiReqTotalTokens = lastApiReqMessage ? getTotalTokensFromApiReqMessage(lastApiReqMessage) : 0
+		const usagePercentage = Math.round((lastApiReqTotalTokens / contextWindow) * 100)
+
+		details += "\n\n# Context Window Usage"
+		details += `\n${lastApiReqTotalTokens.toLocaleString()} / ${(contextWindow / 1000).toLocaleString()}K tokens used (${usagePercentage}%)`
+
+		details += "\n\n# Current Mode"
+		const mode = this.stateManager.getGlobalSettingsKey("mode")
+		if (mode === "plan") {
+			details += `\nPLAN MODE\n${formatResponse.planModeInstructions()}`
+		} else {
+			details += "\nACT MODE"
+			if (this.taskState.didSwitchToActMode) {
+				details += "\nYou are in the ACT MODE now and the following file editing instructions would be useful."
+				details += `\n${getEditingFilesInstructions()}\n`
+			}
+		}
+
+		return `<environment_details>\n${details.trim()}\n</environment_details>`
+	}
+
+	private formatWorkspaceRootsSection(): string {
+		const multiRootEnabled = isMultiRootEnabled(this.stateManager)
+		const hasWorkspaceManager = !!this.workspaceManager
+		const roots = hasWorkspaceManager ? this.workspaceManager!.getRoots() : []
+
+		// Only show workspace roots if multi-root is enabled and there are multiple roots
+		if (!multiRootEnabled || roots.length <= 1) {
+			return ""
+		}
+
+		let section = "\n\n# Workspace Roots"
+
+		// Format each root with its name, path, and VCS info
+		for (const root of roots) {
+			const name = root.name || path.basename(root.path)
+			const vcs = root.vcs ? ` (${String(root.vcs)})` : ""
+			section += `\n- ${name}: ${root.path}${vcs}`
+		}
+
+		// Add primary workspace information
+		const primary = this.workspaceManager!.getPrimaryRoot()
+		const primaryName = this.getPrimaryWorkspaceName(primary)
+		section += `\n\nPrimary workspace: ${primaryName}`
+
+		return section
+	}
+
+	private getPrimaryWorkspaceName(primary?: ReturnType<WorkspaceRootManager["getRoots"]>[0]): string {
+		if (primary?.name) {
+			return primary.name
+		}
+		if (primary?.path) {
+			return path.basename(primary.path)
+		}
+		return path.basename(this.cwd)
+	}
+
+	private async getGitIgnoredNames(): Promise<Set<string>> {
+		const ignored = new Set<string>()
+		try {
+			const content = await fs.readFile(path.join(this.cwd, ".gitignore"), "utf8")
+			for (const raw of content.split("\n")) {
+				const line = raw.trim()
+				// Skip comments, empty lines, and negation patterns
+				if (!line || line.startsWith("#") || line.startsWith("!")) {
+					continue
+				}
+				// Extract the leading path segment: "dist/", "/build", "packages/generated" → "dist", "build", "packages"
+				const name = line.replace(/^\//, "").split("/")[0].replace(/\/$/, "")
+				if (name && !name.includes("*") && !name.includes("?")) {
+					ignored.add(name)
+				}
+			}
+		} catch {
+			// .gitignore absent or unreadable — no-op
+		}
+		return ignored
+	}
+
+	private async *walkCodeFiles(dir: string, ignoredDirs: Set<string>): AsyncGenerator<string> {
+		let entries: Dirent[]
+		try {
+			entries = await fs.readdir(dir, { withFileTypes: true })
+		} catch {
+			return
+		}
+		for (const entry of entries) {
+			if (entry.name.startsWith(".")) {
+				continue
+			}
+			if (entry.isDirectory()) {
+				if (!ignoredDirs.has(entry.name)) {
+					yield* this.walkCodeFiles(path.join(dir, entry.name), ignoredDirs)
+				}
+			} else if (entry.isFile()) {
+				if (CODE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+					yield path.join(dir, entry.name)
+				}
+			}
+		}
+	}
+
+	private static relativeTime(date: Date): string {
+		const seconds = Math.floor((Date.now() - date.getTime()) / 1000)
+		if (seconds < 60) return `${seconds} second${seconds !== 1 ? "s" : ""} ago`
+		const minutes = Math.floor(seconds / 60)
+		if (minutes < 60) return `${minutes} min${minutes !== 1 ? "s" : ""} ago`
+		const hours = Math.floor(minutes / 60)
+		if (hours < 24) return `${hours} hour${hours !== 1 ? "s" : ""} ago`
+		const days = Math.floor(hours / 24)
+		if (days < 30) return `${days} day${days !== 1 ? "s" : ""} ago`
+		const months = Math.floor(days / 30)
+		if (months < 12) return `${months} month${months !== 1 ? "s" : ""} ago`
+		return `${Math.floor(months / 12)} year${Math.floor(months / 12) !== 1 ? "s" : ""} ago`
+	}
+}

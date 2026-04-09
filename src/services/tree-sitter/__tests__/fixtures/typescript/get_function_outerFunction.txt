@@ -1,0 +1,24 @@
+sample.ts::outerFunction
+[Function Hash: 107feba5]
+/**
+ * A nested scenario.
+ */
+function outerFunction(x: number) {
+	/**
+	 * Inner function.
+	 */
+	function innerFunction(y: number) {
+		return x + y
+	}
+
+	class NestedClass {
+		/**
+		 * Nested method.
+		 */
+		nestedMethod() {
+			return innerFunction(10)
+		}
+	}
+
+	return new NestedClass().nestedMethod()
+}

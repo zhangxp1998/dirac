@@ -1,0 +1,2 @@
+sample.ts:
+  (innerFunction) 	function innerFunction(y: number) {

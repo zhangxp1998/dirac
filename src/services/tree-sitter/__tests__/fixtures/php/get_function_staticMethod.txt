@@ -1,0 +1,5 @@
+sample.php::staticMethod
+[Function Hash: 63517dd3]
+public static function staticMethod() {
+        return "static";
+    }

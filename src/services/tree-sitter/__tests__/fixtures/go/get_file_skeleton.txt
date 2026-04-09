@@ -1,0 +1,21 @@
+--- sample.go ---
+|----
+│package main
+|----
+│type GoStruct struct {
+│    # Lines: 3
+|----
+│func NewGoStruct(name string) *GoStruct {
+│    # Lines: 3
+|----
+│func (s *GoStruct) GetName() string {
+│    # Lines: 3
+|----
+│func TopLevelFunc(x int) int {
+│    # Lines: 5
+│    # Calls: [NewGoStruct]
+|----
+│func main() {
+│    # Lines: 3
+│    # Calls: [TopLevelFunc]
+|----

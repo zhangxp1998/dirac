@@ -1,0 +1,8 @@
+sample.ts::nestedMethod
+[Function Hash: 3142f2b9]
+/**
+		 * Nested method.
+		 */
+		nestedMethod() {
+			return innerFunction(10)
+		}

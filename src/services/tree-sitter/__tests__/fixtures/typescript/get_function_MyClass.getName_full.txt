@@ -1,0 +1,14 @@
+sample.ts::getName
+[Function Hash: 323c56d8]
+getName(): string
+
+---
+
+sample.ts::getName
+[Function Hash: 98b0419f]
+/**
+	 * Gets the name.
+	 */
+	getName(): string {
+		return "MyClass"
+	}

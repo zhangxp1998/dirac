@@ -1,0 +1,27 @@
+sample.cpp
+|----
+│class CppClass {
+|----
+│    CppClass(const std::string& name) : m_name(name) {}
+|----
+│    std::string getName() const {
+|----
+│    int calculate(int a, int b);
+|----
+│int CppClass::calculate(int a, int b) {
+|----
+│namespace MyNamespace {
+|----
+│    class NamespaceClass {
+|----
+│        void doSomething() {
+|----
+│        class InnerClass {
+|----
+│            int innerMethod(int val) {
+|----
+│void cpp_main() {
+|----
+│int main() {
+|----
+

@@ -1,0 +1,9 @@
+sample.php::getName
+[Function Hash: 8fe05ab2]
+/**
+     * getName returns the name.
+     */
+    public function getName(): string
+    {
+        return $this->name;
+    }

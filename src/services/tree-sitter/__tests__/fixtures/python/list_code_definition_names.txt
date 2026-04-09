@@ -1,0 +1,29 @@
+sample.py
+|----
+│class PythonClass:
+|----
+│    def __init__(self, name: str):
+|----
+│    def get_name(self) -> str:
+|----
+│    def calculate(self, a: int, b: int) -> int:
+|----
+│def top_level_func(x: int):
+|----
+│def outer_func(x):
+|----
+│    def inner_func(y):
+|----
+│    class NestedClass:
+|----
+│        def nested_method(self):
+|----
+│class ComplexDecorators:
+|----
+│    def multiple_decorators():
+|----
+│    def with_comment(cls):
+|----
+│def shadowing_func():
+|----
+

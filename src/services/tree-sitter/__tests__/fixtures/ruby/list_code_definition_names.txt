@@ -1,0 +1,19 @@
+sample.rb
+|----
+│class RubyClass
+|----
+│  def initialize(name)
+|----
+│  def get_name
+|----
+│  def calculate(a, b)
+|----
+│def top_level_func(x)
+|----
+│module SampleModule
+│  def self.module_func
+|----
+│  class NestedClass
+│    def nested_method
+|----
+

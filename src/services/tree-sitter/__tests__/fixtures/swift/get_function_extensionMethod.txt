@@ -1,0 +1,5 @@
+sample.swift::extensionMethod
+[Function Hash: e04133e7]
+func extensionMethod() {
+        print("extension")
+    }
