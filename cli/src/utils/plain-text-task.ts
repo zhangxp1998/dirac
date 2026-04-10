@@ -58,6 +58,7 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 	let hasEmittedTaskStarted = false
 	// Track which messages have been processed (by timestamp)
 	const processedMessages = new Map<number, string>()
+	const lastProcessedPartialText = new Map<number, string>()
 
 	const isViewTaskOnly = Boolean(options.taskId) && !prompt
 
@@ -84,8 +85,14 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 	const processMessage = (message: DiracMessage) => {
 		const text = message.text || ""
 		const ts = message.ts || 0
-		// Allow re-processing if the text has changed (e.g. api_req_started updated with cost)
-		if (message.partial || (processedMessages.has(ts) && processedMessages.get(ts) === text)) {
+
+		// In verbose mode, we want to see partial messages if the text has changed
+		if (verbose && message.partial) {
+			if (lastProcessedPartialText.get(ts) === text) {
+				return
+			}
+			lastProcessedPartialText.set(ts, text)
+		} else if (message.partial || (processedMessages.has(ts) && processedMessages.get(ts) === text)) {
 			return
 		}
 
@@ -228,46 +235,70 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
  */
 function handleMessageForPipeMode(message: DiracMessage, verbose: boolean, yolo: boolean): void {
 	const fullText = message.text ?? ""
+	const reasoning = message.reasoning ?? ""
+	const isPartial = message.partial ?? false
+	const statusPrefix = verbose ? (isPartial ? "[partial] " : "[complete] ") : ""
 
 	if (message.type === "say") {
 		if (message.say === "error") {
 			// Errors always go to stderr
-			process.stderr.write(`Error: ${fullText}\n`)
+			process.stderr.write(`${statusPrefix}Error: ${fullText}\n`)
 		} else if (verbose) {
 			// Verbose output goes to stderr so it doesn't interfere with piped stdout
 			if (message.say === "task") {
-				process.stderr.write(`${fullText}\n`)
+				process.stderr.write(`${statusPrefix}${fullText}\n`)
 			} else if (message.say === "text" && fullText) {
-				process.stderr.write(`${fullText}\n`)
+				process.stderr.write(`${statusPrefix}${fullText}\n`)
 			} else if (message.say === "api_req_started") {
-				process.stderr.write(`API request started\n`)
+				process.stderr.write(`${statusPrefix}API request started\n`)
 			} else if (message.say === "api_req_finished") {
-				process.stderr.write(`API request finished\n`)
+				process.stderr.write(`${statusPrefix}API request finished\n`)
 			} else if (message.say === "completion_result" && fullText) {
-				process.stderr.write(`${fullText}\n`)
+				process.stderr.write(`${statusPrefix}Completion Result: ${fullText}\n`)
+			} else if (message.say === "reasoning" || reasoning) {
+				const content = fullText || reasoning
+				if (content) {
+					process.stderr.write(`${statusPrefix}Reasoning: ${content}\n`)
+				}
+			} else if (message.say === "tool") {
+				process.stderr.write(`${statusPrefix}Tool Call: ${fullText}\n`)
+			} else if (message.say === "command") {
+				process.stderr.write(`${statusPrefix}Command: ${fullText}\n`)
+			} else if (message.say === "command_output") {
+				process.stderr.write(`${statusPrefix}Command Output: ${fullText}\n`)
 			} else if (fullText) {
-				process.stderr.write(`${message.say}: ${fullText}\n`)
+				process.stderr.write(`${statusPrefix}${message.say}: ${fullText}\n`)
+			} else {
+				// Catch-all for other say types in verbose mode
+				process.stderr.write(`${statusPrefix}Event: ${message.say}\n`)
 			}
 		}
 	} else if (message.type === "ask") {
 		if (message.ask === "api_req_failed") {
 			// Errors always go to stderr
-			process.stderr.write(`Error: API request failed: ${fullText}\n`)
+			process.stderr.write(`${statusPrefix}Error: API request failed: ${fullText}\n`)
 		} else if (message.ask === "tool" || message.ask === "command" || message.ask === "browser_action_launch") {
-			// These require approval - warn via stderr (only if not in yolo mode)
-			if (!yolo) {
-				process.stderr.write(`Waiting for approval (use --yolo for auto-approve): ${message.ask}\n`)
+			// These require approval - warn via stderr
+			if (yolo) {
+				if (verbose) {
+					process.stderr.write(`${statusPrefix}[yolo] Auto-approving ${message.ask}: ${fullText}\n`)
+				}
+			} else {
+				process.stderr.write(`${statusPrefix}Waiting for approval (use --yolo for auto-approve): ${message.ask}: ${fullText}\n`)
 			}
 		} else if (verbose) {
 			// Verbose output goes to stderr
 			if (message.ask === "plan_mode_respond" || message.ask === "act_mode_respond") {
 				if (fullText) {
-					process.stderr.write(`${fullText}\n`)
+					process.stderr.write(`${statusPrefix}Response: ${fullText}\n`)
 				}
 			} else if (message.ask === "completion_result") {
-				process.stderr.write(`Task completed\n`)
+				process.stderr.write(`${statusPrefix}Task completed\n`)
 			} else if (fullText) {
-				process.stderr.write(`Question: ${fullText}\n`)
+				process.stderr.write(`${statusPrefix}Question: ${fullText}\n`)
+			} else {
+				// Catch-all for other ask types in verbose mode
+				process.stderr.write(`${statusPrefix}Question Type: ${message.ask}\n`)
 			}
 		}
 	}
