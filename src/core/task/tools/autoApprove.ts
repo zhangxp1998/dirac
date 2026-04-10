@@ -5,6 +5,15 @@ import { StateManager } from "@/core/storage/StateManager"
 import { HostProvider } from "@/hosts/host-provider"
 import { getCwd, getDesktopDir, isLocatedInPath, isLocatedInWorkspace } from "@/utils/path"
 
+
+const WRITE_TOOLS: DiracDefaultTool[] = [
+	DiracDefaultTool.FILE_NEW,
+	DiracDefaultTool.EDIT_FILE,
+	DiracDefaultTool.REPLACE_SYMBOL,
+	DiracDefaultTool.RENAME_SYMBOL,
+	DiracDefaultTool.NEW_RULE,
+]
+
 export class AutoApprove {
 	private stateManager: StateManager
 	// Cache for workspace paths - populated on first access and reused for the task lifetime
@@ -128,13 +137,7 @@ export class AutoApprove {
 		blockname: DiracDefaultTool,
 		autoApproveActionpath: string | undefined,
 	): Promise<boolean> {
-		if (this.stateManager.getGlobalSettingsKey("yoloModeToggled")) {
-			return true
-		}
-		if (this.stateManager.getGlobalSettingsKey("autoApproveAllToggled")) {
-			return true
-		}
-
+		// 1. Determine if the action is local or external FIRST
 		let isLocalRead = false
 		if (autoApproveActionpath) {
 			// Use cached workspace info instead of fetching every time
@@ -159,6 +162,18 @@ export class AutoApprove {
 			isLocalRead = false
 		}
 
+		// 2. SAFETY POLICY: Always require manual approval for writes outside the workspace, even in YOLO mode
+		const isWriteOperation = WRITE_TOOLS.includes(blockname)
+		if (!isLocalRead && isWriteOperation) {
+			return false
+		}
+
+		if (this.stateManager.getGlobalSettingsKey("yoloModeToggled")) {
+			return true
+		}
+		if (this.stateManager.getGlobalSettingsKey("autoApproveAllToggled")) {
+			return true
+		}
 		// Get auto-approve settings for local and external edits
 		const autoApproveResult = this.shouldAutoApproveTool(blockname)
 		const [autoApproveLocal, autoApproveExternal] = Array.isArray(autoApproveResult)

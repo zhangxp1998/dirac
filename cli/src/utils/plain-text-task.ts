@@ -30,6 +30,7 @@ export interface PlainTextTaskOptions {
 	timeoutSeconds?: number
 	/** Task ID to resume an existing task */
 	taskId?: string
+	yolo?: boolean
 }
 
 /**
@@ -43,7 +44,7 @@ export interface PlainTextTaskOptions {
  * - Errors: Always go to stderr
  */
 export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<boolean> {
-	const { controller, prompt, imageDataUrls, verbose, jsonOutput } = options
+	const { controller, prompt, imageDataUrls, verbose, jsonOutput, yolo } = options
 
 	let completionResolve: (reason?: any) => void
 	let completionReject: (reason?: any) => void
@@ -89,7 +90,15 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 		if (jsonOutput) {
 			process.stdout.write(JSON.stringify(message) + "\n")
 		} else {
-			handleMessageForPipeMode(message, verbose || false)
+			handleMessageForPipeMode(message, verbose || false, yolo || false)
+		}
+
+		// Auto-approve if yolo mode is on and it's an approval request
+		if (yolo && message.type === "ask" && (message.ask === "tool" || message.ask === "command" || message.ask === "browser_action_launch")) {
+			if (verbose) {
+				process.stderr.write(`[yolo] Auto-approving ${message.ask}\n`)
+			}
+			controller.task?.handleWebviewAskResponse("yesButtonClicked")
 		}
 
 		processedMessages.set(ts, message.text ?? "")
@@ -193,7 +202,7 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
  * - Verbose output goes to stderr
  * - Nothing else goes to stdout (stdout is reserved for final result only)
  */
-function handleMessageForPipeMode(message: DiracMessage, verbose: boolean): void {
+function handleMessageForPipeMode(message: DiracMessage, verbose: boolean, yolo: boolean): void {
 	const fullText = message.text ?? ""
 
 	if (message.type === "say") {
@@ -221,8 +230,10 @@ function handleMessageForPipeMode(message: DiracMessage, verbose: boolean): void
 			// Errors always go to stderr
 			process.stderr.write(`Error: API request failed: ${fullText}\n`)
 		} else if (message.ask === "tool" || message.ask === "command" || message.ask === "browser_action_launch") {
-			// These require approval - warn via stderr
-			process.stderr.write(`Waiting for approval (use --yolo for auto-approve): ${message.ask}\n`)
+			// These require approval - warn via stderr (only if not in yolo mode)
+			if (!yolo) {
+				process.stderr.write(`Waiting for approval (use --yolo for auto-approve): ${message.ask}\n`)
+			}
 		} else if (verbose) {
 			// Verbose output goes to stderr
 			if (message.ask === "plan_mode_respond" || message.ask === "act_mode_respond") {

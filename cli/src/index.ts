@@ -288,6 +288,7 @@ async function runTaskInPlainTextMode(
 	// Plain text mode: no Ink rendering, just clean text output
 	const success = await runPlainTextTask({
 		controller: ctx.controller,
+		yolo: options.yolo || options.autoApproveAll,
 		prompt: taskConfig.prompt,
 		taskId: taskConfig.taskId,
 		imageDataUrls: taskConfig.imageDataUrls,
@@ -553,6 +554,17 @@ async function initializeCli(options: InitOptions): Promise<CliContext> {
 	)
 
 	await StateManager.initialize(storageContext)
+	const stateManager = StateManager.get()
+	const { getProviderFromEnv } = await import("@shared/storage/env-config")
+	const envProvider = getProviderFromEnv()
+	if (envProvider) {
+		if (!stateManager.getGlobalSettingsKey("actModeApiProvider")) {
+			stateManager.setSessionOverride("actModeApiProvider", envProvider)
+		}
+		if (!stateManager.getGlobalSettingsKey("planModeApiProvider")) {
+			stateManager.setSessionOverride("planModeApiProvider", envProvider)
+		}
+	}
 	await ErrorService.initialize()
 
 	const webview = HostProvider.get().createDiracWebviewProvider() as any

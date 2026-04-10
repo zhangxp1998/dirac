@@ -1,5 +1,6 @@
 import { StateManager } from "@/core/storage/StateManager"
 import { ProviderToApiKeyMap } from "@/shared/storage"
+import { getSecretsFromEnv } from "@shared/storage/env-config"
 
 /**
  * Check if the user has completed onboarding (has any provider configured).
@@ -9,6 +10,10 @@ import { ProviderToApiKeyMap } from "@/shared/storage"
  * and sets the flag accordingly.
  */
 export async function isAuthConfigured(): Promise<boolean> {
+	// Check environment variables first - they always count as "configured"
+	const envSecrets = getSecretsFromEnv()
+	if (Object.keys(envSecrets).length > 0) return true
+
 	const stateManager = StateManager.get()
 
 	// Check welcomeViewCompleted first - this is the single source of truth
@@ -33,6 +38,10 @@ export async function isAuthConfigured(): Promise<boolean> {
  * Used for migration when welcomeViewCompleted is undefined.
  */
 export async function checkAnyProviderConfigured(): Promise<boolean> {
+	// Check environment variables first
+	const envSecrets = getSecretsFromEnv()
+	if (Object.keys(envSecrets).length > 0) return true
+
 	const stateManager = StateManager.get()
 	const config = stateManager.getApiConfiguration() as Record<string, unknown>
 

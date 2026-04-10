@@ -116,7 +116,7 @@ export class ExecuteCommandToolHandler implements IFullyManagedTool {
 						? autoApproveResult[0]
 						: false
 
-			if (!config.isSubagentExecution && !(isSafe && autoApproveEnabled)) {
+			if (!config.isSubagentExecution && !(isSafe || autoApproveEnabled)) {
 				commandsRequiringApproval.push(actualCommand)
 				cmdState.requiresApproval = true
 			}
@@ -271,7 +271,7 @@ export class ExecuteCommandToolHandler implements IFullyManagedTool {
 			const autoApproveEnabled = Array.isArray(autoApproveResult) ? autoApproveResult[0] : autoApproveResult
 
 			let didAutoApprove = false
-			if (config.isSubagentExecution || (isSafe && autoApproveEnabled)) {
+			if (config.isSubagentExecution || isSafe || autoApproveEnabled) {
 				didAutoApprove = true
 				cmdState.wasAutoApproved = true
 			} else if (globalApprovalGranted) {

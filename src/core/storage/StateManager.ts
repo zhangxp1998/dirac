@@ -14,6 +14,7 @@ import {
     type Settings,
     type SettingsKey,
 } from "@shared/storage/state-keys"
+import { getSecretsFromEnv } from "@shared/storage/env-config"
 import type { StorageContext } from "@shared/storage/storage-context"
 import chokidar, { FSWatcher } from "chokidar"
 import { initializeDistinctId } from "@/services/logging/distinctId"
@@ -829,8 +830,16 @@ export class StateManager {
 	 * Construct API configuration from cached component keys
 	 */
 	private constructApiConfigurationFromCache(): ApiConfiguration {
-		// Build secrets object
+		// Build secrets object from persistent storage
 		const secrets = Object.fromEntries(SecretKeys.map((key) => [key, this.getSecret(key)])) as Secrets
+
+		// Merge environment variables as fallback
+		const envSecrets = getSecretsFromEnv()
+		for (const [key, value] of Object.entries(envSecrets)) {
+			if (value && !secrets[key as keyof Secrets]) {
+				secrets[key as keyof Secrets] = value
+			}
+		}
 
 		// Build API handler settings object with task override support
 		const settings = Object.fromEntries(ApiHandlerSettingsKeys.map((key) => [key, this.getSettingWithOverride(key)]))

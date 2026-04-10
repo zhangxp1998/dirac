@@ -115,9 +115,6 @@ export const DEFAULT_IGNORE_PATTERNS = [
 	"*.min.js",
 	"*.min.css",
 	"*.map",
-	"*.log",
-	"temp",
-	"tmp",
 ]
 
 export class DiracIgnoreController {
