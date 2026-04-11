@@ -1450,20 +1450,6 @@ export const geminiModels = {
 			geminiThinkingLevel: "low",
 			supportsThinkingLevel: true,
 		},
-		tiers: [
-			{
-				contextWindow: 200000,
-				inputPrice: 0.3,
-				outputPrice: 2.5,
-				cacheReadsPrice: 0.03,
-			},
-			{
-				contextWindow: Number.POSITIVE_INFINITY,
-				inputPrice: 0.3,
-				outputPrice: 2.5,
-				cacheReadsPrice: 0.03,
-			},
-		],
 	},
 	"gemini-2.5-pro": {
 		maxTokens: 65536,
