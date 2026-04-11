@@ -129,7 +129,6 @@ const baseContext: SystemPromptContext = {
 	supportsBrowserUse: true,
 	diracWebToolsEnabled: true,
 	subagentsEnabled: true,
-	focusChainSettings: { enabled: true, remindDiracInterval: 6 },
 	browserSettings: { viewport: { width: 1280, height: 720 } },
 	globalDiracRulesFileInstructions: "Follow global rules",
 	localDiracRulesFileInstructions: "Follow local rules",
@@ -159,7 +158,6 @@ async function runPromptTest(
 const contextVariations: Array<{ name: string; override: Partial<SystemPromptContext> }> = [
 	{ name: "basic", override: {} },
 	{ name: "no-browser", override: { supportsBrowserUse: false } },
-	{ name: "no-focus-chain", override: { focusChainSettings: { enabled: false, remindDiracInterval: 0 } } },
 ]
 
 const modelTestCases = [
@@ -206,8 +204,6 @@ describe("Prompt System Integration Tests", () => {
 							}
 							return tool?.name
 						})
-						expect(toolNames).to.not.include("focus_chain")
-						expect(JSON.stringify(tools)).to.not.include('"focus_chain"')
 						const snapshotName = `${providerId}_${modelId.replace(/[^a-zA-Z0-9]/g, "_")}.tools.snap`
 						await assertSnapshot(snapshotName, JSON.stringify(tools, null, 2))
 					})
@@ -280,7 +276,6 @@ describe("Prompt System Integration Tests", () => {
 				cwd: undefined,
 				ide: "",
 				supportsBrowserUse: undefined,
-				focusChainSettings: undefined,
 				providerInfo: mockProviderInfo,
 			}
 

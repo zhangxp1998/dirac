@@ -161,11 +161,6 @@ export class AttemptCompletionHandler implements IToolHandler, IPartialBlockHand
 				await config.callbacks.saveCheckpoint(true)
 			}
 
-			// Attempt completion is a special tool where we want to update the focus chain list before the user provides response
-			if (!block.partial && config.focusChainSettings.enabled) {
-				await config.callbacks.updateFCListFromToolResponse(block.params.task_progress)
-			}
-
 			// Check if command should be auto-approved
 			// attempt_completion commands are treated as safe commands
 			const autoApproveResult = config.autoApprover?.shouldAutoApproveTool(DiracDefaultTool.BASH)
@@ -225,9 +220,6 @@ export class AttemptCompletionHandler implements IToolHandler, IPartialBlockHand
 			await config.callbacks.say("command_output", "")
 		}
 
-		if (!block.partial && config.focusChainSettings.enabled) {
-			await config.callbacks.updateFCListFromToolResponse(block.params.task_progress)
-		}
 
 		// Run TaskComplete hook BEFORE presenting the "Start New Task" button
 		// At this point we know: task is complete, checkpoint saved, result shown to user

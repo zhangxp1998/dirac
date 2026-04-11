@@ -26,7 +26,7 @@ export const InteractionStateProvider: React.FC<{ children: React.ReactNode }> =
 		}
 
 		if (lastMessage.type === "say") {
-			if (lastMessage.say === "task_progress" || lastMessage.partial) return "RUNNING"
+			if (lastMessage.partial) return "RUNNING"
 			if (lastMessage.say === "api_req_started") {
 				try {
 					const info = JSON.parse(lastMessage.text || "{}")

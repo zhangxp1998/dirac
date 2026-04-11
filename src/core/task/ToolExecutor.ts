@@ -109,7 +109,6 @@ export class ToolExecutor {
 		) => Promise<[boolean, any]>,
 		private cancelRunningCommandTool: () => Promise<boolean>,
 		private doesLatestTaskCompletionHaveNewChanges: () => Promise<boolean>,
-		private updateFCListFromToolResponse: (taskProgress: string | undefined) => Promise<void>,
 		private switchToActMode: () => Promise<boolean>,
 		private cancelTask: () => Promise<void>,
 		private postStateToWebview: () => Promise<void>,
@@ -152,7 +151,6 @@ export class ToolExecutor {
 			autoApprovalSettings: this.stateManager.getGlobalSettingsKey("autoApprovalSettings"),
 			autoApprover: this.autoApprover,
 			browserSettings: this.stateManager.getGlobalSettingsKey("browserSettings"),
-			focusChainSettings: this.stateManager.getGlobalSettingsKey("focusChainSettings"),
 			services: {
 				browserSession: this.browserSession,
 				urlContentFetcher: this.urlContentFetcher,
@@ -179,7 +177,6 @@ export class ToolExecutor {
 					await this.messageStateHandler.updateDiracMessage(index, updates)
 					await config.callbacks.postStateToWebview()
 				},
-				updateFCListFromToolResponse: this.updateFCListFromToolResponse,
 				sayAndCreateMissingParamError: this.sayAndCreateMissingParamError,
 				removeLastPartialMessageIfExistsWithType: this.removeLastPartialMessageIfExistsWithType,
 				shouldAutoApproveTool: this.shouldAutoApproveTool.bind(this),
@@ -619,9 +616,5 @@ export class ToolExecutor {
 			return
 		}
 
-		// Handle focus chain updates
-		if (!block.partial && this.stateManager.getGlobalSettingsKey("focusChainSettings").enabled) {
-			await this.updateFCListFromToolResponse(block.params.task_progress)
-		}
 	}
 }

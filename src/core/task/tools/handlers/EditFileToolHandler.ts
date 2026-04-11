@@ -166,9 +166,7 @@ export class EditFileToolHandler implements IFullyManagedTool {
 	}
 
 	private syncCache(config: TaskConfig): void {
-		if (this.lastApiRequestCount !== config.taskState.apiRequestCount) {
-			this.resultsCache.clear()
-			this.lastApiRequestCount = config.taskState.apiRequestCount
-		}
+		// Cache is currently turn-scoped, but we could make it more persistent if needed
+		this.resultsCache.clear()
 	}
 }

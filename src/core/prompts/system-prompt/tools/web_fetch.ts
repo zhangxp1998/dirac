@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 export const web_fetch: DiracToolSpec = {
 	id: DiracDefaultTool.WEB_FETCH,
@@ -27,6 +26,5 @@ export const web_fetch: DiracToolSpec = {
 			instruction: "The prompt to use for analyzing the webpage content",
 			usage: "Summarize the main points and key takeaways",
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

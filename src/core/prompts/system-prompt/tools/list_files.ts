@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.LIST_FILES
 
@@ -26,6 +25,5 @@ export const list_files: DiracToolSpec = {
 			usage: "true or false (optional)",
 			type: "boolean",
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

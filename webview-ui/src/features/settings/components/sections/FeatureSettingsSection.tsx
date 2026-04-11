@@ -4,7 +4,6 @@ import { useSettingsStore } from "@/features/settings/store/settingsStore"
 import { Switch } from "@/shared/ui/switch"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip"
 import Section from "../Section"
-import SettingsSlider from "../SettingsSlider"
 import { updateSetting } from "../utils/settingsHandlers"
 
 // Reusable checkbox component for feature settings
@@ -59,14 +58,6 @@ const agentFeatures: FeatureToggle[] = [
 		description: "Automatically compress conversation history.",
 		stateKey: "useAutoCondense",
 		settingKey: "useAutoCondense",
-	},
-	{
-		id: "focus-chain",
-		label: "Focus Chain",
-		description: "Maintain context focus across interactions",
-		stateKey: "focusChainEnabled",
-		settingKey: "focusChainSettings",
-		nestedKey: "enabled",
 	},
 ]
 
@@ -197,20 +188,12 @@ const FeatureSettingsSection = ({ renderSectionHeader }: FeatureSettingsSectionP
 		subagentsEnabled,
 		diracWebToolsEnabled,
 		worktreesEnabled,
-		focusChainSettings,
 		remoteConfigSettings,
 		nativeToolCallSetting,
 		enableParallelToolCalling,
 		backgroundEditEnabled,
 		doubleCheckCompletionEnabled,
 	} = useSettingsStore()
-
-	const handleFocusChainIntervalChange = useCallback(
-		(value: number) => {
-			updateSetting("focusChainSettings", { ...focusChainSettings, remindDiracInterval: value })
-		},
-		[focusChainSettings],
-	)
 
 	const isYoloRemoteLocked = remoteConfigSettings?.yoloModeToggled !== undefined
 
@@ -220,7 +203,6 @@ const FeatureSettingsSection = ({ renderSectionHeader }: FeatureSettingsSectionP
 		strictPlanModeEnabled,
 		hooksEnabled,
 		nativeToolCallSetting,
-		focusChainEnabled: focusChainSettings?.enabled,
 		useAutoCondense,
 		subagentsEnabled,
 		diracWebToolsEnabled: diracWebToolsEnabled?.user,
@@ -243,15 +225,12 @@ const FeatureSettingsSection = ({ renderSectionHeader }: FeatureSettingsSectionP
 			if (feature.nestedKey) {
 				// For nested settings, spread the existing value and set the nested key
 				let currentValue = {}
-				if (feature.settingKey === "focusChainSettings") {
-					currentValue = focusChainSettings ?? {}
-				}
 				updateSetting(feature.settingKey, { ...currentValue, [feature.nestedKey]: checked })
 			} else {
 				updateSetting(feature.settingKey, checked)
 			}
 		},
-		[focusChainSettings],
+		[],
 	)
 
 	return (
@@ -276,17 +255,6 @@ const FeatureSettingsSection = ({ renderSectionHeader }: FeatureSettingsSectionP
 										label={feature.label}
 										onChange={(checked) => handleFeatureChange(feature, checked)}
 									/>
-									{feature.id === "focus-chain" && featureState[feature.stateKey] && (
-										<SettingsSlider
-											label="Reminder Interval (1-10)"
-											max={10}
-											min={1}
-											onChange={handleFocusChainIntervalChange}
-											step={1}
-											value={focusChainSettings?.remindDiracInterval || 6}
-											valueWidth="w-6"
-										/>
-									)}
 								</div>
 							))}
 						</div>

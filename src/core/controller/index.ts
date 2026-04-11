@@ -569,7 +569,6 @@ export class Controller {
 		const taskHistory = this.stateManager.getGlobalStateKey("taskHistory")
 		const autoApprovalSettings = this.stateManager.getGlobalSettingsKey("autoApprovalSettings")
 		const browserSettings = this.stateManager.getGlobalSettingsKey("browserSettings")
-		const focusChainSettings = this.stateManager.getGlobalSettingsKey("focusChainSettings")
 		const preferredLanguage = this.stateManager.getGlobalSettingsKey("preferredLanguage")
 		const mode = this.stateManager.getGlobalSettingsKey("mode")
 		const strictPlanModeEnabled = this.stateManager.getGlobalSettingsKey("strictPlanModeEnabled")
@@ -643,11 +642,9 @@ export class Controller {
 			apiConfiguration,
 			currentTaskItem,
 			diracMessages,
-			currentFocusChainChecklist: this.task?.taskState.currentFocusChainChecklist || null,
 			checkpointManagerErrorMessage,
 			autoApprovalSettings,
 			browserSettings,
-			focusChainSettings,
 			preferredLanguage,
 			mode,
 			strictPlanModeEnabled,

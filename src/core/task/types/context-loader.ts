@@ -5,7 +5,6 @@ import { FileContextTracker } from "../../context/context-tracking/FileContextTr
 import { Controller } from "../../controller"
 import { DiracIgnoreController } from "../../ignore/DiracIgnoreController"
 import { StateManager } from "../../storage/StateManager"
-import { FocusChainManager } from "../focus-chain"
 import { TaskState } from "../TaskState"
 
 export interface ContextLoaderDependencies {
@@ -17,7 +16,6 @@ export interface ContextLoaderDependencies {
 	fileContextTracker: FileContextTracker
 	workspaceManager?: WorkspaceRootManager
 	diracIgnoreController: DiracIgnoreController
-	FocusChainManager?: FocusChainManager
 	taskState: TaskState
 	getCurrentProviderInfo: () => ApiProviderInfo
 	getEnvironmentDetails: (includeFileDetails?: boolean) => Promise<string>

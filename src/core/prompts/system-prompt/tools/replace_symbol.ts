@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.REPLACE_SYMBOL
 
@@ -40,6 +39,5 @@ export const replace_symbol: DiracToolSpec = {
 				required: ["path", "symbol", "text"],
 			},
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

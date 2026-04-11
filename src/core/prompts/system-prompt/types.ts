@@ -4,7 +4,6 @@
 
 import { ApiProviderInfo } from "@/core/api"
 import type { BrowserSettings } from "@/shared/BrowserSettings"
-import type { FocusChainSettings } from "@/shared/FocusChainSettings"
 import type { SkillMetadata } from "@/shared/skills"
 import { DiracDefaultTool } from "@/shared/tools"
 import { SystemPromptSection } from "./templates/placeholders"
@@ -22,7 +21,6 @@ export interface SystemPromptContext {
 	}
 	readonly supportsBrowserUse?: boolean
 	readonly skills?: SkillMetadata[]
-	readonly focusChainSettings?: FocusChainSettings
 	readonly globalDiracRulesFileInstructions?: string
 	readonly localDiracRulesFileInstructions?: string
 	readonly localCursorRulesFileInstructions?: string
@@ -50,14 +48,6 @@ export interface SystemPromptContext {
 	readonly terminalExecutionMode?: "vscodeTerminal" | "backgroundExec"
 }
 
-/**
- * Common parameter shared between tools for tracking task progress
- */
-export const TASK_PROGRESS_PARAMETER = {
-	name: "task_progress",
-	required: false,
-	instruction: "Updated task progress checklist.",
-}
 
 /**
  * Utility functions for validating prompt components

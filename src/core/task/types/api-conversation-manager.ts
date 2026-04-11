@@ -3,7 +3,6 @@ import { ApiHandler, ApiProviderInfo } from "../../../core/api"
 import { DiffViewProvider } from "../../../integrations/editor/DiffViewProvider"
 import { ContextManager } from "../../context/context-management/ContextManager"
 import { StateManager } from "../../storage/StateManager"
-import { FocusChainManager } from "../focus-chain"
 import { MessageStateHandler } from "../message-state"
 import { StreamResponseHandler } from "../StreamResponseHandler"
 import { TaskMessenger } from "../TaskMessenger"
@@ -25,7 +24,6 @@ export interface ApiConversationManagerDependencies {
 	postStateToWebview: () => Promise<void>
 	diffViewProvider: DiffViewProvider
 	toolExecutor: ToolExecutor
-	FocusChainManager?: FocusChainManager
 	streamHandler: StreamResponseHandler
 	withStateLock: <T>(fn: () => T | Promise<T>) => Promise<T>
 	loadContext: (

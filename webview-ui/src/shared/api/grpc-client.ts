@@ -111,9 +111,6 @@ export class FileServiceClient extends ProtoBusClient {
     static async openFileRelativePath(request: proto.dirac.StringRequest): Promise<proto.dirac.Empty> {
 		return this.makeUnaryRequest("openFileRelativePath", request, proto.dirac.StringRequest.toJSON, proto.dirac.Empty.fromJSON)
 	}
-    static async openFocusChainFile(request: proto.dirac.StringRequest): Promise<proto.dirac.Empty> {
-		return this.makeUnaryRequest("openFocusChainFile", request, proto.dirac.StringRequest.toJSON, proto.dirac.Empty.fromJSON)
-	}
     static async refreshHooks(request: proto.dirac.EmptyRequest): Promise<proto.dirac.HooksToggles> {
 		return this.makeUnaryRequest("refreshHooks", request, proto.dirac.EmptyRequest.toJSON, proto.dirac.HooksToggles.fromJSON)
 	}

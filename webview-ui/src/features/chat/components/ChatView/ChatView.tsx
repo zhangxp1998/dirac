@@ -59,8 +59,6 @@ const ChatViewContent = ({ isHidden, showAnnouncement, hideAnnouncement, showHis
 	const telemetrySetting = useSettingsStore((state) => state.telemetrySetting)
 	const mode = useSettingsStore((state) => state.mode)
 	const userInfo = useUserStore((state) => state.userInfo)
-	const currentFocusChainChecklist = useSettingsStore((state: any) => state.currentFocusChainChecklist)
-	const focusChainSettings = useSettingsStore((state) => state.focusChainSettings)
 	const hooksEnabled = useSettingsStore((state) => state.hooksEnabled)
 	const isProdHostedApp = (userInfo as any)?.appBaseUrl === "https://app.dirac.run"
 	const shouldShowQuickWins = isProdHostedApp && (!taskHistory || taskHistory.length < QUICK_WINS_HISTORY_THRESHOLD)
@@ -168,25 +166,7 @@ const ChatViewContent = ({ isHidden, showAnnouncement, hideAnnouncement, showHis
 		return filterVisibleMessages(modifiedMessages)
 	}, [modifiedMessages])
 
-	const lastProgressMessageText = useMemo(() => {
-		if (!focusChainSettings.enabled) {
-			return undefined
-		}
 
-		// First check if we have a current focus chain list from the extension state
-		if (currentFocusChainChecklist) {
-			return currentFocusChainChecklist
-		}
-
-		// Fall back to the last task_progress message if no state focus chain list
-		const lastProgressMessage = [...modifiedMessages].reverse().find((message) => message.say === "task_progress")
-		return lastProgressMessage?.text
-	}, [focusChainSettings.enabled, modifiedMessages, currentFocusChainChecklist])
-
-	const showFocusChainPlaceholder = useMemo(() => {
-		// Show placeholder whenever focus chain is enabled and no checklist exists yet.
-		return focusChainSettings.enabled && !lastProgressMessageText
-	}, [focusChainSettings.enabled, lastProgressMessageText])
 
 	const groupedMessages = useMemo(() => {
 		return groupLowStakesTools(groupMessages(visibleMessages))
@@ -208,9 +188,7 @@ const ChatViewContent = ({ isHidden, showAnnouncement, hideAnnouncement, showHis
 					{task ? (
 						<TaskSection
 							apiMetrics={apiMetrics}
-							lastProgressMessageText={lastProgressMessageText}
 							messageHandlers={messageHandlers}
-							showFocusChainPlaceholder={showFocusChainPlaceholder}
 							task={task}
 						/>
 					) : (

@@ -16,7 +16,6 @@ export enum DiracDefaultTool {
 	BROWSER = "browser_action",
 	NEW_TASK = "new_task",
 	PLAN_MODE = "plan_mode_respond",
-	TODO = "focus_chain",
 	WEB_FETCH = "web_fetch",
 	WEB_SEARCH = "web_search",
 	CONDENSE = "condense",

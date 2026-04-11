@@ -331,7 +331,6 @@ export class ContextLoader {
         localWorkflowToggles: any,
         globalWorkflowToggles: any,
         ulid: string,
-        focusChainSettings: any,
         useNativeToolCalls: boolean,
         providerInfo: any,
         includePathContext: boolean,
@@ -349,7 +348,6 @@ export class ContextLoader {
             localWorkflowToggles,
             globalWorkflowToggles,
             ulid,
-            focusChainSettings,
             useNativeToolCalls,
             providerInfo,
         )
@@ -386,7 +384,6 @@ export class ContextLoader {
 
         // Pre-fetch necessary data to avoid redundant calls within loops
         const ulid = this.dependencies.ulid
-        const focusChainSettings = this.dependencies.stateManager.getGlobalSettingsKey("focusChainSettings")
         const useNativeToolCalls = this.dependencies.stateManager.getGlobalStateKey("nativeToolCallEnabled")
         const providerInfo = this.dependencies.getCurrentProviderInfo()
         const cwd = this.dependencies.cwd
@@ -403,7 +400,6 @@ export class ContextLoader {
                 localWorkflowToggles,
                 globalWorkflowToggles,
                 ulid,
-                focusChainSettings,
                 useNativeToolCalls,
                 providerInfo,
                 includeFileDetails,
@@ -486,19 +482,6 @@ export class ContextLoader {
             ? await ensureLocalDiracDirExists(this.dependencies.cwd, GlobalFileNames.diracRules)
             : false
 
-        // Add focus chain instructions if needed
-        if (!useCompactPrompt && this.dependencies.FocusChainManager?.shouldIncludeFocusChainInstructions()) {
-            const focusChainInstructions = this.dependencies.FocusChainManager.generateFocusChainInstructions()
-            if (focusChainInstructions.trim()) {
-                processedUserContent.push({
-                    type: "text",
-                    text: focusChainInstructions,
-                })
-
-                this.dependencies.taskState.apiRequestsSinceLastTodoUpdate = 0
-                this.dependencies.taskState.todoListWasUpdatedByUser = false
-            }
-        }
 
         return [processedUserContent, environmentDetails, diracrulesError]
     }

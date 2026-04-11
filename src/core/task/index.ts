@@ -90,7 +90,6 @@ import { StateManager } from "../storage/StateManager"
 import { ApiConversationManager } from "./ApiConversationManager"
 import { ContextLoader } from "./ContextLoader"
 import { EnvironmentManager } from "./EnvironmentManager"
-import { FocusChainManager } from "./focus-chain"
 import { HookManager } from "./HookManager"
 import { LifecycleManager } from "./LifecycleManager"
 import { MessageStateHandler } from "./message-state"
@@ -196,7 +195,6 @@ export class Task {
 	private lifecycleManager: LifecycleManager
 	private apiConversationManager: ApiConversationManager
 	private responseProcessor: ResponseProcessor
-	private FocusChainManager?: FocusChainManager
 
 	// Callbacks
 	private updateTaskHistory: (historyItem: HistoryItem) => Promise<HistoryItem[]>
@@ -318,19 +316,6 @@ export class Task {
 		this.modelContextTracker = new ModelContextTracker(this.taskId)
 		this.environmentContextTracker = new EnvironmentContextTracker(this.taskId)
 
-		// Initialize focus chain manager only if enabled
-		const focusChainSettings = this.stateManager.getGlobalSettingsKey("focusChainSettings")
-		if (focusChainSettings.enabled) {
-			this.FocusChainManager = new FocusChainManager({
-				taskId: this.taskId,
-				taskState: this.taskState,
-				mode: this.stateManager.getGlobalSettingsKey("mode"),
-				stateManager: this.stateManager,
-				postStateToWebview: this.postStateToWebview,
-				say: this.say.bind(this),
-				focusChainSettings: focusChainSettings,
-			})
-		}
 
 		// Check for multiroot workspace and warn about checkpoints
 		const isMultiRootWorkspace = this.workspaceManager && this.workspaceManager.getRoots().length > 1
@@ -433,12 +418,6 @@ export class Task {
 		// from Controller.initTask() AFTER the task instance is fully assigned.
 		// This prevents race conditions where hooks run before controller.task is ready.
 
-		// Set up focus chain file watcher (async, runs in background) only if focus chain is enabled
-		if (this.FocusChainManager) {
-			this.FocusChainManager.setupFocusChainFileWatcher().catch((error) => {
-				Logger.error(`[Task ${this.taskId}] Failed to setup focus chain file watcher:`, error)
-			})
-		}
 
 		// initialize telemetry
 
@@ -519,7 +498,6 @@ export class Task {
 			this.executeCommandTool.bind(this),
 			this.cancelBackgroundCommand.bind(this),
 			() => this.checkpointManager?.doesLatestTaskCompletionHaveNewChanges() ?? Promise.resolve(false),
-			this.FocusChainManager?.updateFCListFromToolResponse.bind(this.FocusChainManager) || (async () => {}),
 			this.switchToActModeCallback.bind(this),
 			this.cancelTask,
 			this.postStateToWebview.bind(this),
@@ -549,7 +527,6 @@ export class Task {
 			fileContextTracker: this.fileContextTracker,
 			workspaceManager: this.workspaceManager,
 			diracIgnoreController: this.diracIgnoreController,
-			FocusChainManager: this.FocusChainManager,
 			taskState: this.taskState,
 			getCurrentProviderInfo: this.getCurrentProviderInfo.bind(this),
 			getEnvironmentDetails: this.getEnvironmentDetails.bind(this),
@@ -592,7 +569,6 @@ export class Task {
 			cancelTask: this.cancelTask,
 			checkpointManager: this.checkpointManager,
 			diracIgnoreController: this.diracIgnoreController,
-			FocusChainManager: this.FocusChainManager,
 			terminalManager: this.terminalManager,
 			urlContentFetcher: this.urlContentFetcher,
 			browserSession: this.browserSession,
@@ -620,7 +596,6 @@ export class Task {
 			postStateToWebview: this.postStateToWebview,
 			diffViewProvider: this.diffViewProvider,
 			toolExecutor: this.toolExecutor,
-			FocusChainManager: this.FocusChainManager,
 			streamHandler: this.streamHandler,
 			withStateLock: this.withStateLock.bind(this),
 			loadContext: this.loadContext.bind(this),
@@ -985,7 +960,6 @@ export class Task {
 			editorTabs,
 			supportsBrowserUse,
 			skills: availableSkills,
-			focusChainSettings: this.stateManager.getGlobalSettingsKey("focusChainSettings"),
 			globalDiracRulesFileInstructions,
 			localDiracRulesFileInstructions,
 			localCursorRulesFileInstructions,
@@ -1235,8 +1209,6 @@ export class Task {
 			throw new Error("Task instance aborted")
 		}
 
-		this.taskState.apiRequestCount++
-		this.taskState.apiRequestsSinceLastTodoUpdate++
 
 		const { model, providerId, customPrompt, mode } = this.getCurrentProviderInfo()
 		if (providerId && model.id) {

@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.ASK
 
@@ -21,7 +20,6 @@ export const ask_followup_question: DiracToolSpec = {
 			instruction: "Optional array of 2-5 predefined answer options. DO NOT include options to toggle Act mode.",
 			usage: '["Option 1", "Option 2"]',
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }
 

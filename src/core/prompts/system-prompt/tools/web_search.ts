@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 export const web_search: DiracToolSpec = {
 	id: DiracDefaultTool.WEB_SEARCH,
@@ -33,6 +32,5 @@ export const web_search: DiracToolSpec = {
 			instruction: "JSON array of domains to exclude from results",
 			usage: '["ads.com", "spam.com"]',
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

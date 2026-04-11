@@ -197,7 +197,6 @@ export class ApiConversationManager {
 			userContent.push({
 				type: "text",
 				text: summarizeTask(
-					this.dependencies.stateManager.getGlobalSettingsKey("focusChainSettings"),
 					this.dependencies.cwd,
 					isMultiRootEnabled(this.dependencies.stateManager),
 				),

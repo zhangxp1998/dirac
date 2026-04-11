@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.FIND_SYMBOL_REFERENCES
 
@@ -34,6 +33,5 @@ export const find_symbol_references: DiracToolSpec = {
 			instruction:
 				'Specifies the type of references to find. "definition" returns only definitions, "reference" returns only references, and "both" (default) returns both.',
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

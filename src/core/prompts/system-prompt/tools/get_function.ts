@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.GET_FUNCTION
 
@@ -26,6 +25,5 @@ export const get_function: DiracToolSpec = {
 			instruction: "Exact names of the functions or methods to extract.",
 			usage: '["calculateSum", "findMax"]',
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

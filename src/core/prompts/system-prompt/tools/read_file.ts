@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.FILE_READ
 
@@ -32,6 +31,5 @@ export const read_file: DiracToolSpec = {
 			instruction: "Optional. If not supplied, the output will go until the last line",
 			usage: "50",
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

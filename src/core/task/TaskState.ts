@@ -58,11 +58,6 @@ export class TaskState {
 	// Task Initialization
 	isInitialized = false
 
-	// Focus Chain / Todo List Management
-	apiRequestCount = 0
-	apiRequestsSinceLastTodoUpdate = 0
-	currentFocusChainChecklist: string | null = null
-	todoListWasUpdatedByUser = false
 
 	// Task Abort / Cancellation
 	abort = false

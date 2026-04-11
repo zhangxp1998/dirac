@@ -7,7 +7,6 @@ import { edit_file } from "./edit_file"
 import { execute_command } from "./execute_command"
 import { find_symbol_references } from "./find_symbol_references"
 
-import { focus_chain } from "./focus_chain"
 import { get_file_skeleton } from "./get_file_skeleton"
 import { get_function } from "./get_function"
 import { list_files } from "./list_files"
@@ -37,7 +36,6 @@ export function registerDiracToolSets(): void {
 		rename_symbol,
 		execute_command,
 
-		focus_chain,
 		// generate_explanation,
 		get_function,
 		get_file_skeleton,

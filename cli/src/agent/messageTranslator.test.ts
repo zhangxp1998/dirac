@@ -716,52 +716,6 @@ describe("translateMessage - say messages", () => {
 		})
 	})
 
-	describe("task progress messages", () => {
-		it("should translate say:task_progress to plan update", () => {
-			const message = createDiracMessage({
-				type: "say",
-				say: "task_progress",
-				text: `- [x] Step 1 completed
-- [ ] Step 2 pending
-- Working on step 3`,
-			})
-
-			const result = translateMessage(message, sessionState)
-
-			const planUpdate = result.updates.find((u) => u.sessionUpdate === "plan")
-			expect(planUpdate).toBeDefined()
-
-			const plan = planUpdate as acp.Plan & { sessionUpdate: "plan" }
-			expect(plan.entries).toHaveLength(3)
-
-			// Validate each entry conforms to schema
-			plan.entries.forEach(assertValidPlanEntry)
-
-			// Check specific entries
-			expect(plan.entries[0].content).toBe("Step 1 completed")
-			expect(plan.entries[0].status).toBe("completed")
-
-			expect(plan.entries[1].content).toBe("Step 2 pending")
-			expect(plan.entries[1].status).toBe("pending")
-
-			expect(plan.entries[2].content).toBe("Working on step 3")
-			expect(plan.entries[2].status).toBe("in_progress")
-		})
-
-		it("should handle empty task progress", () => {
-			const message = createDiracMessage({
-				type: "say",
-				say: "task_progress",
-				text: "",
-			})
-
-			const result = translateMessage(message, sessionState)
-
-			// Should not produce a plan update with no entries
-			const planUpdate = result.updates.find((u) => u.sessionUpdate === "plan")
-			expect(planUpdate).toBeUndefined()
-		})
-	})
 
 	describe("informational messages", () => {
 		it("should translate say:info to agent_message_chunk", () => {

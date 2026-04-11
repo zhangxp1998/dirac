@@ -11,7 +11,7 @@ describe("slash-commands", () => {
 
 	it("should process builtin slash command", async () => {
 		const text = "<task>" + "/newtask" + "</task>"
-		const result = await parseSlashCommands(text, {}, {}, "test-ulid", undefined, false, {
+		const result = await parseSlashCommands(text, {}, {}, "test-ulid", false, {
 			providerId: "anthropic",
 			model: { id: "claude-3-5-sonnet-20240620", info: {} as any },
 			mode: "act",

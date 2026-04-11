@@ -396,8 +396,6 @@ export const MessageRenderer = ({
 						</div>
 					)
 				}
-				case "task_progress":
-					return <InvisibleSpacer />
 				default:
 					return (
 						<div>

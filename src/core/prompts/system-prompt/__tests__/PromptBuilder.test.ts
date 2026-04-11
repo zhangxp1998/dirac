@@ -8,10 +8,6 @@ describe("PromptBuilder", () => {
 		cwd: "/test/project",
 		ide: "TestIde",
 		supportsBrowserUse: true,
-		focusChainSettings: {
-			enabled: true,
-			remindDiracInterval: 6,
-		},
 		browserSettings: {
 			viewport: {
 				width: 1280,

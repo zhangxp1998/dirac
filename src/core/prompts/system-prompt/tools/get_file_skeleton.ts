@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.GET_FILE_SKELETON
 
@@ -18,6 +17,5 @@ export const get_file_skeleton: DiracToolSpec = {
 			instruction: "An array of relative paths to the source files.",
 			usage: '["src/utils/math.ts", "src/utils/string.py"]',
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

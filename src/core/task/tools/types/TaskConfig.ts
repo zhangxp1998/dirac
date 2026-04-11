@@ -9,7 +9,6 @@ import type { UrlContentFetcher } from "@services/browser/UrlContentFetcher"
 import type { AutoApprovalSettings } from "@shared/AutoApprovalSettings"
 import type { BrowserSettings } from "@shared/BrowserSettings"
 import type { DiracAsk, DiracMessage, DiracSay, MultiCommandState } from "@shared/ExtensionMessage"
-import type { FocusChainSettings } from "@shared/FocusChainSettings"
 import type { DiracContent } from "@shared/messages/content"
 import type { Mode } from "@shared/storage/types"
 import type { DiracDefaultTool } from "@shared/tools"
@@ -56,7 +55,6 @@ export interface TaskConfig {
 	autoApprovalSettings: AutoApprovalSettings
 	autoApprover: AutoApprove
 	browserSettings: BrowserSettings
-	focusChainSettings: FocusChainSettings
 
 	// Callbacks (strongly typed)
 	callbacks: TaskCallbacks
@@ -113,7 +111,6 @@ export interface TaskCallbacks {
 
 	doesLatestTaskCompletionHaveNewChanges: () => Promise<boolean>
 
-	updateFCListFromToolResponse: (taskProgress: string | undefined) => Promise<void>
 
 	shouldAutoApproveTool: (toolName: DiracDefaultTool) => boolean | [boolean, boolean]
 	shouldAutoApproveToolWithPath: (toolName: DiracDefaultTool, path?: string) => Promise<boolean>

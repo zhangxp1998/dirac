@@ -75,7 +75,6 @@ export function filterVisibleMessages(messages: DiracMessage[]): DiracMessage[] 
 			case "api_req_retried":
 			case "deleted_api_reqs":
 			case "subagent_usage":
-			case "task_progress":
 				return false
 			case "api_req_started":
 				return true

@@ -11,7 +11,6 @@ describe("ToolExecutor canonicalization", () => {
 			name: DiracDefaultTool.ATTEMPT,
 			params: {
 				response: "final answer from response field",
-				task_progress: "- [x] done",
 			},
 			partial: false,
 		}

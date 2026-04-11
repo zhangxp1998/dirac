@@ -10,7 +10,6 @@ import { ContextManager } from "../../context/context-management/ContextManager"
 import { FileContextTracker } from "../../context/context-tracking/FileContextTracker"
 import { DiracIgnoreController } from "../../ignore/DiracIgnoreController"
 import { StateManager } from "../../storage/StateManager"
-import { FocusChainManager } from "../focus-chain"
 import { HookManager } from "../HookManager"
 import { MessageStateHandler } from "../message-state"
 import { TaskMessenger } from "../TaskMessenger"
@@ -29,7 +28,6 @@ export interface LifecycleManagerDependencies {
 	cancelTask: () => Promise<void>
 	checkpointManager?: ICheckpointManager
 	diracIgnoreController: DiracIgnoreController
-	FocusChainManager?: FocusChainManager
 	terminalManager: ITerminalManager
 	urlContentFetcher: UrlContentFetcher
 	browserSession: BrowserSession

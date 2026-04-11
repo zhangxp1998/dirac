@@ -38,7 +38,6 @@ export async function parseSlashCommands(
 	localWorkflowToggles: DiracRulesToggles,
 	globalWorkflowToggles: DiracRulesToggles,
 	ulid: string,
-	focusChainSettings?: { enabled: boolean },
 	enableNativeToolCalls?: boolean,
 	providerInfo?: ApiProviderInfo,
 ): Promise<{ processedText: string; needsDiracrulesFileCheck: boolean }> {
@@ -49,11 +48,11 @@ export async function parseSlashCommands(
 
 	const commandReplacements: Record<string, string> = {
 		newtask: newTaskToolResponse(willUseNativeTools),
-		smol: condenseToolResponse(focusChainSettings),
-		compact: condenseToolResponse(focusChainSettings),
+		smol: condenseToolResponse(),
+		compact: condenseToolResponse(),
 		newrule: newRuleToolResponse(),
 		reportbug: reportBugToolResponse(),
-		"deep-planning": deepPlanningToolResponse(focusChainSettings, providerInfo, willUseNativeTools),
+		"deep-planning": deepPlanningToolResponse(providerInfo, willUseNativeTools),
 		"explain-changes": explainChangesToolResponse(),
 	}
 

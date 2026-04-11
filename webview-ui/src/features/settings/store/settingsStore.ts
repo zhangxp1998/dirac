@@ -3,7 +3,6 @@ import { DEFAULT_BROWSER_SETTINGS } from "@shared/BrowserSettings"
 import { Environment } from "@shared/config-types"
 import type { DiracMessage, ExtensionState } from "@shared/ExtensionMessage"
 import { DEFAULT_PLATFORM } from "@shared/ExtensionMessage"
-import { DEFAULT_FOCUS_CHAIN_SETTINGS } from "@shared/FocusChainSettings"
 import { create } from "zustand"
 
 interface SettingsState {
@@ -29,7 +28,6 @@ interface SettingsState {
 	openAiCodexIsAuthenticated: boolean
 	autoApprovalSettings: ExtensionState["autoApprovalSettings"]
 	browserSettings: ExtensionState["browserSettings"]
-	focusChainSettings: ExtensionState["focusChainSettings"]
 	preferredLanguage: string
 	mode: string
 	platform: string
@@ -134,7 +132,6 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set) => ({
 	autoApprovalSettings: DEFAULT_AUTO_APPROVAL_SETTINGS,
 	browserSettings: DEFAULT_BROWSER_SETTINGS,
-	focusChainSettings: DEFAULT_FOCUS_CHAIN_SETTINGS,
 	preferredLanguage: "English",
 	mode: "act",
 	platform: DEFAULT_PLATFORM,

@@ -8,7 +8,6 @@ import { BrowserSettings } from "./BrowserSettings"
 import { DiracFeatureSetting } from "./DiracFeatureSetting"
 import { BannerCardData } from "./dirac/banner"
 import { DiracRulesToggles } from "./dirac-rules"
-import { FocusChainSettings } from "./FocusChainSettings"
 import { HistoryItem } from "./HistoryItem"
 import { DiracMessageModelInfo } from "./messages"
 import { OnboardingModelGroup } from "./proto/dirac/state"
@@ -49,7 +48,6 @@ export interface ExtensionState {
 	checkpointManagerErrorMessage?: string
 	diracMessages: DiracMessage[]
 	currentTaskItem?: HistoryItem
-	currentFocusChainChecklist?: string | null
 	planActSeparateModelsSetting: boolean
 	enableCheckpointsSetting?: boolean
 	platform: Platform
@@ -84,7 +82,6 @@ export interface ExtensionState {
 	subagentsEnabled?: boolean
 	diracWebToolsEnabled?: DiracFeatureSetting
 	worktreesEnabled?: DiracFeatureSetting
-	focusChainSettings: FocusChainSettings
 	customPrompt?: string
 	favoritedModelIds: string[]
 	// NEW: Add workspace information
@@ -180,7 +177,6 @@ export type DiracSay =
 	| "checkpoint_created"
 	| "generate_explanation"
 	| "info" // Added for general informational messages like retry status
-	| "task_progress"
 	| "hook_status"
 	| "hook_output_stream"
 	| "subagent"

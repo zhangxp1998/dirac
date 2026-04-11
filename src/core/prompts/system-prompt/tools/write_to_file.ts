@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.FILE_NEW
 
@@ -21,6 +20,5 @@ export const write_to_file: DiracToolSpec = {
 			instruction: "The COMPLETE intended content of the file. Do not truncate or omit any parts.",
 			usage: "Full file content here",
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

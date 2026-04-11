@@ -354,7 +354,6 @@ export class SubagentRunner {
 				cwd: this.baseConfig.cwd,
 				ide: host?.platform || "Unknown",
 				skills,
-				focusChainSettings: this.baseConfig.focusChainSettings,
 				browserSettings: this.baseConfig.browserSettings,
 				yoloModeToggled: false,
 				enableNativeToolCalls: nativeToolCallsRequested,

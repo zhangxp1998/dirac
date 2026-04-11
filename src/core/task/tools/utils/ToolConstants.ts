@@ -27,7 +27,6 @@ export const TASK_CONFIG_KEYS = [
 	"autoApprovalSettings",
 	"autoApprover",
 	"browserSettings",
-	"focusChainSettings",
 	"callbacks",
 	"coordinator",
 ] as const
@@ -59,7 +58,6 @@ export const TASK_CALLBACKS_KEYS = [
 	"removeLastPartialMessageIfExistsWithType",
 	"executeCommandTool",
 	"doesLatestTaskCompletionHaveNewChanges",
-	"updateFCListFromToolResponse",
 	"shouldAutoApproveToolWithPath",
 	"postStateToWebview",
 	"reinitExistingTaskFromId",

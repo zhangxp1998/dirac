@@ -9,8 +9,6 @@ interface TaskSectionProps {
 		totalCost: number
 	}
 	messageHandlers: MessageHandlers
-	lastProgressMessageText?: string
-	showFocusChainPlaceholder?: boolean
 }
 
 /**
@@ -21,15 +19,11 @@ export const TaskSection: React.FC<TaskSectionProps> = ({
 	task,
 	apiMetrics,
 	messageHandlers,
-	lastProgressMessageText,
-	showFocusChainPlaceholder,
 }) => {
 	return (
 		<TaskHeader
-			lastProgressMessageText={lastProgressMessageText}
 			onClose={messageHandlers.handleTaskCloseButtonClick}
 			onSendMessage={messageHandlers.handleSendMessage}
-			showFocusChainPlaceholder={showFocusChainPlaceholder}
 			task={task}
 			totalCost={apiMetrics.totalCost}
 		/>

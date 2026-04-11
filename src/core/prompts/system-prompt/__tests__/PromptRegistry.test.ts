@@ -9,10 +9,6 @@ describe("PromptRegistry", () => {
 		cwd: "/test/project",
 		ide: "TestIde",
 		supportsBrowserUse: true,
-		focusChainSettings: {
-			enabled: true,
-			remindDiracInterval: 6,
-		},
 		browserSettings: {
 			viewport: {
 				width: 1280,
@@ -48,35 +44,6 @@ describe("PromptRegistry", () => {
 		})
 	})
 
-	describe("native tools", () => {
-		it("should not include focus_chain in native tools output", async () => {
-			const nativeContext: SystemPromptContext = {
-				...mockContext,
-				enableNativeToolCalls: true,
-				providerInfo: {
-					...mockProviderInfo,
-					providerId: "openai-native",
-					model: { ...mockProviderInfo.model, id: "gpt-5" },
-				},
-			}
-
-			await registry.get(nativeContext)
-			const nativeTools = registry.nativeTools
-
-			expect(nativeTools).to.be.an("array").that.is.not.empty
-
-			// OpenAI-native tools are function tools; keep a fallback for other providers.
-			const toolNames = (nativeTools as any[]).map((tool) => {
-				if (tool?.type === "function") {
-					return tool.function?.name
-				}
-				return tool?.name
-			})
-
-			expect(toolNames).to.not.include("focus_chain")
-			expect(JSON.stringify(nativeTools)).to.not.include('"focus_chain"')
-		})
-	})
 
 	describe("basic functionality", () => {
 		it("should be able to create registry instance", () => {

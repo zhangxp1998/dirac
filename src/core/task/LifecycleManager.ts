@@ -494,15 +494,6 @@ export class LifecycleManager {
 				Logger.error("Failed to post state after setting abort flag", error)
 			}
 
-			if (this.dependencies.FocusChainManager) {
-				const apiConfig = this.dependencies.stateManager.getApiConfiguration()
-				const currentMode = this.dependencies.stateManager.getGlobalSettingsKey("mode")
-				const currentProvider = (
-					currentMode === "plan" ? apiConfig.planModeApiProvider : apiConfig.actModeApiProvider
-				) as string
-				const currentModelId = this.dependencies.api.getModel().id
-				this.dependencies.FocusChainManager.checkIncompleteProgressOnCompletion(currentModelId, currentProvider)
-			}
 
 			this.dependencies.terminalManager.disposeAll()
 			this.dependencies.urlContentFetcher.closeBrowser()
@@ -510,9 +501,6 @@ export class LifecycleManager {
 			this.dependencies.diracIgnoreController.dispose()
 			this.dependencies.fileContextTracker.dispose()
 			await this.dependencies.diffViewProvider.revertChanges()
-			if (this.dependencies.FocusChainManager) {
-				this.dependencies.FocusChainManager.dispose()
-			}
 			AnchorStateManager.reset(this.dependencies.taskId)
 		} finally {
 			if (this.dependencies.taskState.taskLockAcquired) {

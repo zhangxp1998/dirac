@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.PLAN_MODE
 
@@ -22,6 +21,5 @@ export const plan_mode_respond: DiracToolSpec = {
 			usage: "true or false",
 			type: "boolean",
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.SEARCH
 
@@ -34,6 +33,5 @@ export const search_files: DiracToolSpec = {
 			instruction: "Optional number of context lines to show before and after each match (0-10, default 0).",
 			usage: "2",
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

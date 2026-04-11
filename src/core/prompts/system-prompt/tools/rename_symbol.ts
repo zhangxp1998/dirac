@@ -1,6 +1,5 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.RENAME_SYMBOL
 
@@ -32,6 +31,5 @@ export const rename_symbol: DiracToolSpec = {
 			instruction: "The new name for the symbol.",
 			usage: '"calculateGrandTotal"',
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

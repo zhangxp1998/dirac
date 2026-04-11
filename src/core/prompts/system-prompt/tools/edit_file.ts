@@ -1,7 +1,6 @@
 import { DiracDefaultTool } from "@/shared/tools"
 import { getDelimiter } from "../../../../utils/line-hashing"
 import type { DiracToolSpec } from "../spec"
-import { TASK_PROGRESS_PARAMETER } from "../types"
 
 const id = DiracDefaultTool.EDIT_FILE
 
@@ -76,6 +75,5 @@ You MUST batch all non-overlapping edits into a single tool call. As long as the
 				required: ["path", "edits"],
 			},
 		},
-		TASK_PROGRESS_PARAMETER,
 	],
 }

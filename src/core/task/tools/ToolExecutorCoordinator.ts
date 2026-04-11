@@ -97,7 +97,6 @@ export class ToolExecutorCoordinator {
 
 		[DiracDefaultTool.NEW_TASK]: (_v: ToolValidator) => new NewTaskHandler(),
 		[DiracDefaultTool.PLAN_MODE]: (_v: ToolValidator) => new PlanModeRespondHandler(),
-		[DiracDefaultTool.TODO]: (_v: ToolValidator) => undefined,
 		[DiracDefaultTool.WEB_FETCH]: (_v: ToolValidator) => new WebFetchToolHandler(),
 		[DiracDefaultTool.WEB_SEARCH]: (_v: ToolValidator) => new WebSearchToolHandler(),
 		[DiracDefaultTool.CONDENSE]: (_v: ToolValidator) => new CondenseHandler(),
