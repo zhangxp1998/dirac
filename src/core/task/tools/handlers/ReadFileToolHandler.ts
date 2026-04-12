@@ -184,6 +184,7 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 		const supportsImages = config.api.getModel().info.supportsImages ?? false
 		const results: string[] = []
 		let anyFailed = false
+		let anySucceeded = false
 		const imageBlocks: any[] = []
 
 		for (let i = 0; i < relPaths.length; i++) {
@@ -196,6 +197,7 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 
 				// Track file read operation
 				await config.services.fileContextTracker.trackFileContext(relPath, "read_tool")
+				anySucceeded = true
 
 				// Store image blocks to push after potential approval
 				if (fileContent.imageBlock) {
@@ -219,7 +221,6 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 				}
 			} catch (error) {
 				anyFailed = true
-				config.taskState.consecutiveMistakeCount++
 				const errorMessage = error instanceof Error ? error.message : String(error)
 				const normalizedMessage = errorMessage.startsWith("Error reading file:")
 					? errorMessage
@@ -227,8 +228,9 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 				results.push(`--- ${relPath} ---\n${normalizedMessage}`)
 			}
 		}
-
-		if (!anyFailed) {
+		if (anyFailed) {
+			config.taskState.consecutiveMistakeCount++
+		} else if (anySucceeded) {
 			config.taskState.consecutiveMistakeCount = 0
 		}
 

@@ -155,6 +155,8 @@ export class BatchProcessor {
             newLineHashes: string[]
         }>()
 
+        let anyFailed = false;
+        let anySucceeded = false;
         // 2. Apply and save all files (sequentially to avoid UI mess)
         for (let i = 0; i < preparedBatches.length; i++) {
             const batch = preparedBatches[i]
@@ -162,13 +164,21 @@ export class BatchProcessor {
             try {
                 const applied = await this.applyAndSave(config, batch, { silent: !isLast })
                 appliedResults.set(batch.absolutePath, applied)
+                anySucceeded = true;
             } catch (error) {
-                config.taskState.consecutiveMistakeCount++
+                anyFailed = true;
                 const errorMessage = error instanceof Error ? error.message : String(error)
                 results.set(batch.absolutePath, formatResponse.toolError(`Error applying edits to ${batch.displayPath}: ${errorMessage}`))
             } finally {
                 await config.services.diffViewProvider.reset().catch(() => { })
             }
+
+        }
+
+        if (anyFailed) {
+            config.taskState.consecutiveMistakeCount++;
+        } else if (anySucceeded) {
+            config.taskState.consecutiveMistakeCount = 0;
         }
 
         // 3. Run diagnostics for all successfully applied files in parallel
