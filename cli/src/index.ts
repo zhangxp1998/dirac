@@ -42,6 +42,7 @@ interface TaskOptions {
 	json?: boolean
 	stdinWasPiped?: boolean
 	hooksDir?: string
+	subagents?: boolean
 }
 
 let telemetryDisposed = false
@@ -198,6 +199,10 @@ async function applyTaskOptions(options: TaskOptions): Promise<void> {
 	if (options.doubleCheckCompletion) {
 		stateManager.setSessionOverride("doubleCheckCompletionEnabled", true)
 		telemetryService.captureHostEvent("double_check_completion_flag", "true")
+	}
+
+	if (options.subagents) {
+		stateManager.setSessionOverride("subagentsEnabled", true)
 	}
 
 	if (options.autoCondense) {
@@ -900,6 +905,7 @@ program
 	.option("--json", "Output messages as JSON instead of styled text")
 	.option("--double-check-completion", "Reject first completion attempt to force re-verification")
 	.option("--auto-condense", "Enable AI-powered context compaction instead of mechanical truncation")
+	.option("--subagents", "Enable subagents for the task")
 	.option("--hooks-dir <path>", "Path to additional hooks directory for runtime hook injection")
 	.option("-T, --taskId <id>", "Resume an existing task by ID")
 	.action((prompt, options) => {
@@ -1120,6 +1126,7 @@ program
 	.option("--json", "Output messages as JSON instead of styled text")
 	.option("--double-check-completion", "Reject first completion attempt to force re-verification")
 	.option("--auto-condense", "Enable AI-powered context compaction instead of mechanical truncation")
+	.option("--subagents", "Enable subagents for the task")
 	.option("--hooks-dir <path>", "Path to additional hooks directory for runtime hook injection")
 	.option("--acp", "Run in ACP (Agent Client Protocol) mode for editor integration")
 	.option("--kanban", "Run npx kanban --agent dirac")
