@@ -30,6 +30,7 @@ import { formatResponse } from "@core/prompts/responses"
 import type { SystemPromptContext } from "@core/prompts/system-prompt"
 import { getSystemPrompt } from "@core/prompts/system-prompt"
 import { detectBestShell } from "@/utils/shell-detection"
+import { getAvailableCores } from "@/utils/os"
 import { ensureRulesDirectoryExists, ensureTaskDirectoryExists } from "@core/storage/disk"
 import { isMultiRootEnabled } from "@core/workspace/multi-root-utils"
 import { WorkspaceRootManager } from "@core/workspace/WorkspaceRootManager"
@@ -993,6 +994,7 @@ export class Task {
 			activeShellType: shellInfo.type,
 			activeShellPath: shellInfo.path,
 			activeShellIsPosix: shellInfo.isPosix,
+			availableCores: getAvailableCores(),
 		}
 
 		// Notify user if any conditional rules were applied for this request

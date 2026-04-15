@@ -50,6 +50,7 @@ export interface SystemPromptContext {
 	readonly activeShellType?: ShellType
 	readonly activeShellPath?: string
 	readonly activeShellIsPosix?: boolean
+	readonly availableCores?: number
 }
 
 

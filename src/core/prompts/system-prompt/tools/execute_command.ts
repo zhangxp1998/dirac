@@ -19,7 +19,7 @@ export const execute_command: DiracToolSpec = {
 			type: "array",
 			items: { type: "string" },
 			instruction:
-				"An array of CLI commands to execute in sequence. Use proper shell operators within each command. Do not use ~ for home directory.",
+				"An array of CLI commands to execute in sequence. Use proper shell operators within each command. Do not use ~ for home directory. When running builds or parallel tasks, use the number of cores provided in SYSTEM INFO instead of 'nproc' to respect environment limits.",
 		},
 		{
 			name: "script",

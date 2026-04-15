@@ -82,6 +82,7 @@ SYSTEM INFO
 }
 - Home Directory: {{HOME_DIR}}
 - Current Working Directory: ${currentCwd} (this is where all the tools will be executed from)
+- Available CPU Cores: {{AVAILABLE_CORES}} (Use this value for parallel jobs like 'make -j' instead of 'nproc')
 
 OBJECTIVE
 
