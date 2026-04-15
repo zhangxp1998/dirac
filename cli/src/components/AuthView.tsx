@@ -156,6 +156,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 	const [modelId, setModelId] = useState("")
 	const [baseUrl, setBaseUrl] = useState("")
 	const [errorMessage, setErrorMessage] = useState("")
+	const [codexAuthUrl, setCodexAuthUrl] = useState<string | null>(null)
 	const [providerSearch, setProviderSearch] = useState("")
 	const [providerIndex, setProviderIndex] = useState(0)
 	const [importSources, setImportSources] = useState<DetectedSources>({ codex: false, opencode: false })
@@ -233,6 +234,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 		try {
 			// Get the authorization URL and start the callback server
 			const authUrl = openAiCodexOAuthManager.startAuthorizationFlow()
+			setCodexAuthUrl(authUrl)
 
 			// Open browser to authorization URL (uses cross-platform 'open' package)
 			await openExternal(authUrl)
@@ -248,12 +250,14 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 			setSelectedProvider("openai-codex")
 			setModelId(openAiCodexDefaultModelId)
 			setStep("success")
+			setCodexAuthUrl(null)
 		} catch (error) {
 			openAiCodexOAuthManager.cancelAuthorizationFlow()
 			setErrorMessage(error instanceof Error ? error.message : String(error))
 			setStep("error")
+			setCodexAuthUrl(null)
 		}
-	}, [])
+	}, [controller])
 
 	const handleMainMenuSelect = useCallback(
 		(value: string) => {
@@ -621,6 +625,21 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 						</Box>
 						<Text> </Text>
 						<Text color="gray">Sign in with your ChatGPT account in the browser.</Text>
+						{codexAuthUrl && (
+							<Box flexDirection="column" marginTop={1}>
+								<Text color="gray">If the browser didn't open, use this URL:</Text>
+								<Text color="cyan" wrap="wrap">
+									{codexAuthUrl}
+								</Text>
+								<Box marginTop={1}>
+									<Text color="yellow">
+										Note: If you are on a remote machine, you may need to set up SSH port forwarding:
+									</Text>
+								</Box>
+								<Text color="gray">ssh -L 1455:localhost:1455 your-remote-host</Text>
+							</Box>
+						)}
+						<Text> </Text>
 						<Text color="gray">Requires ChatGPT Plus, Pro, or Team subscription.</Text>
 						<Text> </Text>
 						<Text color="gray">Esc to cancel</Text>

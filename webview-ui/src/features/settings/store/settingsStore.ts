@@ -26,6 +26,7 @@ interface SettingsState {
 	huggingFaceModels: any
 	requestyModels: any
 	openAiCodexIsAuthenticated: boolean
+	openAiCodexEmail?: string
 	autoApprovalSettings: ExtensionState["autoApprovalSettings"]
 	browserSettings: ExtensionState["browserSettings"]
 	preferredLanguage: string
@@ -211,6 +212,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
 	huggingFaceModels: {},
 	requestyModels: {},
 	openAiCodexIsAuthenticated: false,
+	openAiCodexEmail: undefined,
 
 	triggerNativeToolCall: false,
 	diracMessages: [],

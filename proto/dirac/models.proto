@@ -41,6 +41,10 @@ service ModelsService {
   rpc updateApiConfiguration(UpdateApiConfigurationRequestNew) returns (Empty);
   // Updates API configuration with partial values (only updates fields that are explicitly set)
   rpc updateApiConfigurationPartial(UpdateApiConfigurationPartialRequest) returns (Empty);
+  // Authenticates with OpenAI Codex (ChatGPT subscription)
+  rpc authenticateOpenAiCodex(EmptyRequest) returns (Empty);
+  // Signs out from OpenAI Codex
+  rpc signOutOpenAiCodex(EmptyRequest) returns (Empty);
   // Refreshes and returns Groq models
   rpc refreshGroqModelsRpc(EmptyRequest) returns (OpenRouterCompatibleModelInfo);
   // Refreshes and returns Baseten models

@@ -638,6 +638,7 @@ export class Controller {
 		// Check OpenAI Codex authentication status
 		const { openAiCodexOAuthManager } = await import("@/integrations/openai-codex/oauth")
 		const openAiCodexIsAuthenticated = await openAiCodexOAuthManager.isAuthenticated()
+		const openAiCodexEmail = (await openAiCodexOAuthManager.getEmail()) ?? undefined
 
 		return {
 			version,
@@ -713,6 +714,7 @@ export class Controller {
 			banners,
 			welcomeBanners,
 			openAiCodexIsAuthenticated,
+			openAiCodexEmail,
 		}
 	}
 

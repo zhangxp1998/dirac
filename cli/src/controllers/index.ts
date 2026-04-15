@@ -147,9 +147,15 @@ export class CliEnvServiceClient implements EnvServiceClientInterface {
 		const url = request.value || ""
 		if (url) {
 			printInfo(`🌐 Opening: ${url}`)
-			// Dynamically import 'open' to open URL in default browser
-			const { default: open } = await import("open")
-			await open(url)
+			try {
+				// Dynamically import 'open' to open URL in default browser
+				const { default: open } = await import("open")
+				await open(url)
+			} catch (error) {
+				// Log the error but don't throw, so the caller can continue (e.g. show URL for manual copy-paste)
+				printWarning(`Could not open browser automatically: ${error instanceof Error ? error.message : String(error)}`)
+				printInfo("Please open the URL manually if it didn't open.")
+			}
 		}
 		return proto.dirac.Empty.create()
 	}

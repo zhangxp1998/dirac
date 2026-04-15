@@ -78,13 +78,12 @@ export class AttemptCompletionHandler implements IToolHandler, IPartialBlockHand
 
 			return formatResponse.toolError(
 				"Before completing, re-verify your work against the original task requirements. Check that:\n" +
-					"1. All requested changes have been made\n" +
+					"1. All requested changes have been made (verify using a script/`exceute_command` when possible)\n" +
 					"2. No steps were skipped or partially completed\n" +
 					"3. Edge cases and error handling are addressed\n" +
 					"4. The solution matches what was asked for, not just what was convenient\n" +
 					"5. Output files contain exactly what was specified - no extra columns, fields, debug output, or commentary\n" +
 					"6. If the task specifies numerical thresholds or accuracy targets, verify your result meets the criteria. If close but not passing, iterate rather than declaring completion" + 
-					"7. When appropriate, feel free to use scripts/execute_command for verification" +
 					taskSection +
 					"\n\nIf everything checks out, call attempt_completion again with your final result.",
 			)

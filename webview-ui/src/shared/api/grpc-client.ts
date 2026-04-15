@@ -183,6 +183,12 @@ export class ModelsServiceClient extends ProtoBusClient {
     static async updateApiConfigurationPartial(request: proto.dirac.UpdateApiConfigurationPartialRequest): Promise<proto.dirac.Empty> {
 		return this.makeUnaryRequest("updateApiConfigurationPartial", request, proto.dirac.UpdateApiConfigurationPartialRequest.toJSON, proto.dirac.Empty.fromJSON)
 	}
+    static async authenticateOpenAiCodex(request: proto.dirac.EmptyRequest): Promise<proto.dirac.Empty> {
+		return this.makeUnaryRequest("authenticateOpenAiCodex", request, proto.dirac.EmptyRequest.toJSON, proto.dirac.Empty.fromJSON)
+	}
+    static async signOutOpenAiCodex(request: proto.dirac.EmptyRequest): Promise<proto.dirac.Empty> {
+		return this.makeUnaryRequest("signOutOpenAiCodex", request, proto.dirac.EmptyRequest.toJSON, proto.dirac.Empty.fromJSON)
+	}
     static async refreshGroqModelsRpc(request: proto.dirac.EmptyRequest): Promise<proto.dirac.OpenRouterCompatibleModelInfo> {
 		return this.makeUnaryRequest("refreshGroqModelsRpc", request, proto.dirac.EmptyRequest.toJSON, proto.dirac.OpenRouterCompatibleModelInfo.fromJSON)
 	}

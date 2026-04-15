@@ -141,7 +141,10 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 	const [pendingProvider, setPendingProvider] = useState<string | null>(null)
 	const [isConfiguringBedrock, setIsConfiguringBedrock] = useState(false)
 	const [isWaitingForCodexAuth, setIsWaitingForCodexAuth] = useState(false)
+	const [codexAuthUrl, setCodexAuthUrl] = useState<string | null>(null)
 	const [codexAuthError, setCodexAuthError] = useState<string | null>(null)
+	const [openAiCodexIsAuthenticated, setOpenAiCodexIsAuthenticated] = useState(false)
+	const [openAiCodexEmail, setOpenAiCodexEmail] = useState<string | undefined>(undefined)
 	const [apiKeyValue, setApiKeyValue] = useState("")
 	const [editValue, setEditValue] = useState("")
 
@@ -203,6 +206,22 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 	const [modelRefreshKey, setModelRefreshKey] = useState(0)
 	const refreshModelIds = useCallback(() => setModelRefreshKey((k) => k + 1), [])
 	// Read model IDs from state (re-reads when refreshKey changes)
+	// Update OpenAI Codex auth status
+	useEffect(() => {
+		const updateAuthStatus = async () => {
+			const isAuthenticated = await openAiCodexOAuthManager.isAuthenticated()
+			setOpenAiCodexIsAuthenticated(isAuthenticated)
+			if (isAuthenticated) {
+				const email = await openAiCodexOAuthManager.getEmail()
+				setOpenAiCodexEmail(email ?? undefined)
+			} else {
+				setOpenAiCodexEmail(undefined)
+			}
+		}
+		updateAuthStatus()
+	}, [provider, isWaitingForCodexAuth])
+
+
 	const { actModelId, planModelId } = useMemo(() => {
 		const apiConfig = stateManager.getApiConfiguration()
 		const actProvider = apiConfig.actModeApiProvider
@@ -247,6 +266,22 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 						type: "editable",
 						value: provider ? getProviderLabel(provider) : "not configured",
 					},
+					...(provider === "openai-codex" && openAiCodexIsAuthenticated
+						? [
+								{
+									key: "codexEmail",
+									label: "Authenticated as",
+									type: "readonly" as const,
+									value: openAiCodexEmail || "ChatGPT User",
+								},
+								{
+									key: "codexSignOut",
+									label: "Sign Out",
+									type: "action" as const,
+									value: "",
+								},
+							]
+						: []),
 					...(separateModels
 						? [
 								{ key: "spacer0", label: "", type: "spacer" as const, value: "" },
@@ -588,6 +623,16 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 		}
 
 		// Thinking toggles - set budget to 1024 when enabled, 0 when disabled
+		if (item.key === "codexSignOut") {
+			openAiCodexOAuthManager.clearCredentials().then(() => {
+				setOpenAiCodexIsAuthenticated(false)
+				setOpenAiCodexEmail(undefined)
+				rebuildTaskApi()
+			})
+			return
+		}
+
+
 		if (item.key === "actThinkingEnabled") {
 			setActThinkingEnabled(newValue)
 			stateManager.setGlobalState("actModeThinkingBudgetTokens", newValue ? 1024 : 0)
@@ -794,6 +839,7 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 
 			// Get the authorization URL and start the callback server
 			const authUrl = openAiCodexOAuthManager.startAuthorizationFlow()
+			setCodexAuthUrl(authUrl)
 
 			// Open browser to authorization URL
 			await openExternal(authUrl)
@@ -806,10 +852,12 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 			setProvider("openai-codex")
 			refreshModelIds()
 			setIsWaitingForCodexAuth(false)
+			setCodexAuthUrl(null)
 		} catch (error) {
 			openAiCodexOAuthManager.cancelAuthorizationFlow()
 			setCodexAuthError(error instanceof Error ? error.message : String(error))
 			setIsWaitingForCodexAuth(false)
+			setCodexAuthUrl(null)
 		}
 	}, [controller])
 
@@ -1119,7 +1167,6 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 				/>
 			)
 		}
-
 		if (isWaitingForCodexAuth) {
 			return (
 				<Box flexDirection="column">
@@ -1132,7 +1179,23 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 					<Box marginTop={1}>
 						<Text color="gray">Sign in with your ChatGPT account in the browser.</Text>
 					</Box>
-					<Text color="gray">Requires ChatGPT Plus, Pro, or Team subscription.</Text>
+					{codexAuthUrl && (
+						<Box flexDirection="column" marginTop={1}>
+							<Text color="gray">If the browser didn't open, use this URL:</Text>
+							<Text color="cyan" wrap="wrap">
+								{codexAuthUrl}
+							</Text>
+							<Box marginTop={1}>
+								<Text color="yellow">
+									Note: If you are on a remote machine, you may need to set up SSH port forwarding:
+								</Text>
+							</Box>
+							<Text color="gray">ssh -L 1455:localhost:1455 your-remote-host</Text>
+						</Box>
+					)}
+					<Box marginTop={1}>
+						<Text color="gray">Requires ChatGPT Plus, Pro, or Team subscription.</Text>
+					</Box>
 					<Box marginTop={1}>
 						<Text color="gray">Esc to cancel</Text>
 					</Box>
