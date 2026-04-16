@@ -823,23 +823,63 @@ async function runAuth(options: {
 	config?: string
 }) {
 	const { telemetryService } = await import("@/services/telemetry")
-	const { printWarning } = await import("./utils/display")
+	const { printWarning, printInfo } = await import("./utils/display")
 	const { checkRawModeSupport } = await import("./context/StdinContext")
 	const React = (await import("react")).default
 	const { App } = await import("./components/App")
 
 	const ctx = await initializeCli({ ...options, enableAuth: true })
 
-	const hasQuickSetupFlags = options.provider && options.apikey && options.modelid
+	let provider = options.provider
+	let apikey = options.apikey
+	let modelid = options.modelid
+
+	if (!provider || !apikey || !modelid) {
+		const { getSecretsFromEnv, getProviderFromEnv } = await import("@shared/storage/env-config")
+		const { ProviderToApiKeyMap, getProviderDefaultModelId } = await import("@shared/storage")
+
+		if (!provider) {
+			provider = getProviderFromEnv()
+			if (provider) {
+				printInfo(`Inferred provider "${provider}" from environment variables`)
+			}
+		}
+
+		if (provider && !apikey) {
+			const envSecrets = getSecretsFromEnv()
+			const normalizedProvider = provider.toLowerCase().trim()
+			const secretKeyOrKeys = (ProviderToApiKeyMap as any)[normalizedProvider]
+			if (secretKeyOrKeys) {
+				const keys = Array.isArray(secretKeyOrKeys) ? secretKeyOrKeys : [secretKeyOrKeys]
+				for (const key of keys) {
+					const value = envSecrets[key as keyof typeof envSecrets]
+					if (value) {
+						apikey = value
+						printInfo(`Using API key from environment for provider "${provider}"`)
+						break
+					}
+				}
+			}
+		}
+
+		if (provider && !modelid) {
+			modelid = (getProviderDefaultModelId as any)(provider) || undefined
+			if (modelid) {
+				printInfo(`Using default model "${modelid}" for provider "${provider}"`)
+			}
+		}
+	}
+
+	const hasQuickSetupFlags = !!(provider && apikey && modelid)
 
 	telemetryService.captureHostEvent("auth_command", hasQuickSetupFlags ? "quick_setup" : "interactive")
 
 	// Quick setup mode - no UI, just save configuration and exit
 	if (hasQuickSetupFlags) {
 		const result = await performQuickAuthSetup(ctx, {
-			provider: options.provider!,
-			apikey: options.apikey!,
-			modelid: options.modelid!,
+			provider: provider!,
+			apikey: apikey!,
+			modelid: modelid!,
 			baseurl: options.baseurl,
 		})
 
