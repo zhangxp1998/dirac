@@ -1,4 +1,3 @@
-// Restore GenerateContentConfig import and add GenerateContentResponseUsageMetadata
 import {
 	ApiError,
 	FunctionCallingConfigMode,
