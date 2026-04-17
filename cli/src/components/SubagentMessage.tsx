@@ -59,13 +59,16 @@ function formatSubagentStatsValues(
 	toolCalls: number | undefined,
 	contextTokens: number | undefined,
 	totalCost: number | undefined,
+	cacheWrites: number | undefined,
+	cacheReads: number | undefined,
 	latestToolCall?: string,
 ) {
 	const safeToolCalls = Number.isFinite(toolCalls) ? Math.max(0, toolCalls || 0) : 0
 	const toolUses = safeToolCalls === 1 ? "tool use" : "tool uses"
 	const tokensUsed = formatCompactTokens(contextTokens || 0)
 	const formattedCost = formatCompactCost(totalCost || 0)
-	const stats = `${safeToolCalls} ${toolUses} · ${tokensUsed} tokens · ${formattedCost}`
+	const cacheInfo = (cacheWrites || cacheReads) ? ` · cache: ${formatCompactTokens(cacheReads || 0)}r/${formatCompactTokens(cacheWrites || 0)}w` : ""
+	const stats = `${safeToolCalls} ${toolUses} · ${tokensUsed} tokens${cacheInfo} · ${formattedCost}`
 	const latestTool = latestToolCall?.trim()
 	return latestTool ? `${latestTool} · ${stats}` : stats
 }
@@ -215,7 +218,7 @@ export const SubagentMessage: React.FC<SubagentMessageProps> = ({ message, mode,
 								{shouldShowPromptStats && (
 									<TreeStatsRow
 										prefix={continuationPrefix}
-										stats={formatSubagentStatsValues(undefined, undefined, undefined)}
+										stats={formatSubagentStatsValues(undefined, undefined, undefined, undefined, undefined)}
 									/>
 								)}
 							</Box>
@@ -236,6 +239,8 @@ export const SubagentMessage: React.FC<SubagentMessageProps> = ({ message, mode,
 			toolCalls: 0,
 			inputTokens: 0,
 			outputTokens: 0,
+			cacheWrites: 0,
+			cacheReads: 0,
 			contextWindow: 0,
 			maxContextTokens: 0,
 			maxContextUsagePercentage: 0,
@@ -283,6 +288,8 @@ export const SubagentMessage: React.FC<SubagentMessageProps> = ({ message, mode,
 											entry.toolCalls,
 											entry.contextTokens,
 											entry.totalCost,
+											entry.cacheWrites,
+											entry.cacheReads,
 											entry.latestToolCall,
 										)}
 									/>
@@ -311,6 +318,8 @@ export const SubagentMessage: React.FC<SubagentMessageProps> = ({ message, mode,
 											entry.toolCalls,
 											entry.contextTokens,
 											entry.totalCost,
+											entry.cacheWrites,
+											entry.cacheReads,
 											entry.latestToolCall,
 										)}
 									/>
@@ -345,6 +354,8 @@ export const SubagentMessage: React.FC<SubagentMessageProps> = ({ message, mode,
 											entry.toolCalls,
 											entry.contextTokens,
 											entry.totalCost,
+											entry.cacheWrites,
+											entry.cacheReads,
 											entry.latestToolCall,
 										)}
 									/>

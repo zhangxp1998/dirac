@@ -39,7 +39,7 @@ export class DiracToolSet {
 	}
 
 	private static getDynamicSubagentToolSpecs(context: SystemPromptContext): DiracToolSpec[] {
-		if (context.subagentsEnabled !== true || context.isSubagentRun) {
+		if (context.subagentsEnabled !== true) {
 			return []
 		}
 
@@ -48,12 +48,22 @@ export class DiracToolSet {
 			id: DiracDefaultTool.USE_SUBAGENTS,
 			name: toolName,
 			description: `Use the "${config.name}" subagent: ${config.description}`,
-			contextRequirements: (ctx) => ctx.subagentsEnabled === true && !ctx.isSubagentRun,
+			contextRequirements: (ctx) => ctx.subagentsEnabled === true,
 			parameters: [
 				{
 					name: "prompt",
 					required: true,
 					instruction: "Helpful instruction for the task that the subagent will perform.",
+				},
+				{
+					name: "timeout",
+					required: false,
+					instruction: "Optional timeout in seconds for the subagent.",
+				},
+				{
+					name: "max_turns",
+					required: false,
+					instruction: "Optional maximum number of turns for the subagent.",
 				},
 			],
 		}))

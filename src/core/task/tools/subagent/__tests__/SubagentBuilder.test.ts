@@ -108,7 +108,7 @@ describe("SubagentBuilder", () => {
 		assert.equal((effectiveApiConfig as Record<string, unknown>).actModeApiModelId, "act-default")
 	})
 
-	it("builds native tools by filtering allowed ids and context requirements then converting", () => {
+	it("builds native tools by converting all enabled tool specs", () => {
 		sinon.stub(AgentConfigLoader, "getInstance").returns({
 			getCachedConfig: (subagentName?: string) =>
 				subagentName === "tools-agent"
@@ -148,6 +148,7 @@ describe("SubagentBuilder", () => {
 		const result = builder.buildNativeTools(context)
 		assert.equal(getEnabledToolSpecsStub.callCount, 1)
 		assert.equal(getConverterStub.callCount, 1)
-		assert.deepEqual(result, [{ converted: DiracDefaultTool.LIST_FILES }])
+		// Subagents now receive all tools, so it should include both LIST_FILES and SEARCH
+		assert.deepEqual(result, [{ converted: DiracDefaultTool.LIST_FILES }, { converted: DiracDefaultTool.SEARCH }])
 	})
 })

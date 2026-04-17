@@ -13,7 +13,7 @@ describe("GeminiHandler", () => {
 		},
 	})
 
-	it("caps maxOutputTokens to 8192 for Flash models", async () => {
+	it("caps maxOutputTokens to 32768 for Flash models", async () => {
 		const handler = new GeminiHandler({
 			geminiApiKey: "test-api-key",
 			apiModelId: "gemini-2.5-flash",
@@ -41,10 +41,10 @@ describe("GeminiHandler", () => {
 		}
 
 		const requestArgs = generateContentStream.firstCall.args[0] as Record<string, any>
-		requestArgs.config.should.have.property("maxOutputTokens", 8_192)
+		requestArgs.config.should.have.property("maxOutputTokens", 32_768)
 	})
 
-	it("does not set maxOutputTokens for non-Flash models", async () => {
+	it("sets maxOutputTokens for non-Flash models", async () => {
 		const handler = new GeminiHandler({
 			geminiApiKey: "test-api-key",
 			apiModelId: "gemini-2.5-pro",
@@ -72,7 +72,7 @@ describe("GeminiHandler", () => {
 		}
 
 		const requestArgs = generateContentStream.firstCall.args[0] as Record<string, any>
-		requestArgs.config.should.not.have.property("maxOutputTokens")
+		requestArgs.config.should.have.property("maxOutputTokens", 32_768)
 	})
 
 	it("should emit unique tool call IDs when multiple function calls share one responseId", async () => {

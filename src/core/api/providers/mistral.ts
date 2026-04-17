@@ -1,6 +1,6 @@
 import { Mistral } from "@mistralai/mistralai"
-import { HTTPClient } from "@mistralai/mistralai/lib/http"
-import { Tool as MistralTool } from "@mistralai/mistralai/models/components/tool"
+import { HTTPClient } from "@mistralai/mistralai"
+import { Tool as MistralTool } from "@mistralai/mistralai/models/components"
 import { MistralModelId, ModelInfo, mistralDefaultModelId, mistralModels } from "@shared/api"
 import type { ChatCompletionTool as OpenAITool } from "openai/resources/chat/completions"
 import { buildExternalBasicHeaders } from "@/services/EnvUtils"

@@ -30,7 +30,7 @@ describe("createOpenRouterStream", () => {
 		supportsPromptCache: false,
 	})
 
-	it("caps Gemini Flash OpenRouter requests to 8192 max_tokens", async () => {
+	it("caps Gemini Flash OpenRouter requests to 32768 max_tokens", async () => {
 		const { client, create } = createClient()
 
 		await createOpenRouterStream(client as any, "system prompt", [{ role: "user", content: "hello" }] as any, {
@@ -39,10 +39,10 @@ describe("createOpenRouterStream", () => {
 		})
 
 		const payload = create.firstCall.args[0] as Record<string, unknown>
-		payload.should.have.property("max_tokens", 8_192)
+		payload.should.have.property("max_tokens", 32_768)
 	})
 
-	it("keeps lower Gemini Flash max_tokens values when already below 8192", async () => {
+	it("keeps lower Gemini Flash max_tokens values when already below 32768", async () => {
 		const { client, create } = createClient()
 
 		await createOpenRouterStream(client as any, "system prompt", [{ role: "user", content: "hello" }] as any, {

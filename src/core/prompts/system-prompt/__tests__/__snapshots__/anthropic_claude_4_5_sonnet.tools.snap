@@ -12,10 +12,6 @@
         "options": {
           "type": "string",
           "description": "Optional array of 2-5 predefined answer options. DO NOT include options to toggle Act mode."
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -55,10 +51,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -96,7 +88,7 @@
   },
   {
     "name": "edit_file",
-    "description": "Edit one or more files by replacing, inserting after, or inserting before specific lines.\nRead the files of extract function first to get current anchors. Each file contains an array of edits.\n\nEDIT TYPES:\n1. replace (default): Replaces an inclusive range of lines from anchor to end_anchor.\n2. insert_after: Inserts the provided text immediately after the line specified by anchor. end_anchor is not used.\n3. insert_before: Inserts the provided text immediately before the line specified by anchor. end_anchor is not used.\n\nANCHOR RULES:\n1. Anchors are a single opaque word (e.g., \"AppleBanana\") and basically hashes that carry no meaning, ollowed by § which is followed by the actual line content.\n2. For 'replace', anchors are inclusive, meaning what you specify as anchor and end_anchor, the lines belonging to both and everything in between will be overwritten.\n3. Anchors are file scoped. \"Apple§\" in one file is different from \"Apple§\" in another file.  \n\nWhen replacing multi-line statements, function calls, or dictionaries, you MUST ensure your end_anchor points to precisely the line where the construct ends (e.g. a closing bracket or end of function). Do not leave orphaned closing syntax on the following lines NOR do miss the closing syntax. \n\nTip: if you are stuck updating a single line, try to change it to 'replace' call with start line is few lines before the the target line and end line is a few lines after.\n\nBATCHING RULES:\nYou MUST group all non-overlapping edits for a single file into the single 'edits' array parameter to save unnecessary round trips. As long as the edits do not overlap, our backend tooling guarantees safety. Multiple files can be edited in a single call.",
+    "description": "Edit one or more files by replacing, inserting after, or inserting before specific lines.\nRead the files of extract function first to get current anchors. Each file contains an array of edits.\n\nEDIT TYPES:\n1. replace (default): Replaces an inclusive range of lines from anchor to end_anchor.\n2. insert_after: Inserts the provided text immediately after the line specified by anchor. end_anchor is not used.\n3. insert_before: Inserts the provided text immediately before the line specified by anchor. end_anchor is not used.\n\nANCHOR RULES:\n1. Anchors are a single opaque word (e.g., \"AppleBanana\") and basically hashes that carry no meaning, ollowed by § which is followed by the actual line content.\n2. For 'replace', anchors are inclusive, meaning what you specify as anchor and end_anchor, the lines belonging to both and everything in between will be overwritten.\n3. Anchors are file scoped. \"Apple§\" in one file is different from \"Apple§\" in another file.  \n\nWhen replacing multi-line statements, function calls, or dictionaries, you MUST ensure your end_anchor points to precisely the line where the construct ends (e.g. a closing bracket or end of function). Do not leave orphaned closing syntax on the following lines NOR do miss the closing syntax. \n\nTip: if you are stuck updating a single line, try to change it to 'replace' call with start line is few lines before the the target line and end line is a few lines after.\n\nBATCHING RULES:\nYou MUST batch all non-overlapping edits into a single tool call. As long as the edits do not overlap, our backend tooling guarantees safety. Multiple files can be edited in a single call also.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -153,10 +145,6 @@
               "edits"
             ]
           }
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -199,10 +187,6 @@
               "text"
             ]
           }
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -212,7 +196,7 @@
   },
   {
     "name": "rename_symbol",
-    "description": "Renames a symbol (function, class, method, or variable) across the specified files or directories. This tool uses AST-based indexing to find all definitions and references of the symbol and replaces them with a new name. It is more accurate than a simple search-and-replace because it understands the language structure.",
+    "description": "Renames ALL occurences of a symbol (function, class, method, or variable) inside the specified files or directories. This tool can identify precise symbols using a language's AST and is more accurate than a simple search-and-replace because it understands the language structure. For renaming tasks, strongly prefer this as the first pass.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -230,10 +214,6 @@
         "new_symbol": {
           "type": "string",
           "description": "The new name for the symbol."
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -245,26 +225,32 @@
   },
   {
     "name": "execute_command",
-    "description": "Executes CLI commands on the system. Provide an array of commands for sequential execution. In multi-root workspaces, you can use @workspace:command syntax (e.g., @backend:npm install) to execute a command in a specific workspace.",
+    "description": "Executes CLI commands or scripts. Use 'commands' for simple sequences of shell operations. Use 'script' for complex multi-line logic, data processing, or when a high-level language like Python or Node.js is more efficient than shell scripting. Default language is bash'script' are also very useful for combinatorial problems such as looping over 'swap and try' patternScripts have full access to the file system and current environment, be careful. In multi-root workspaces, use the @workspace:command syntax for standard commands. Leverage the full power of the environment's interpreters (bash, python, node, etc.) to accomplish tasks with minimal round-trips.",
     "input_schema": {
       "type": "object",
       "properties": {
         "commands": {
           "type": "array",
-          "description": "An array of CLI commands to execute in sequence. Use proper shell operators within each command. Do not use ~ for home directory.",
+          "description": "An array of CLI commands to execute in sequence. Use proper shell operators within each command. Do not use ~ for home directory. When running builds or parallel tasks, use the number of cores provided in SYSTEM INFO instead of 'nproc' to respect environment limits.",
           "items": {
             "type": "string"
           }
+        },
+        "script": {
+          "type": "string",
+          "description": "A script to execute. Use this for complex multi-line logic or non-shell languages like Python or Node.js."
+        },
+        "language": {
+          "type": "string",
+          "description": "The language of the script (e.g., 'bash', 'python', 'node'). Defaults to 'bash'."
         }
       },
-      "required": [
-        "commands"
-      ]
+      "required": []
     }
   },
   {
     "name": "get_function",
-    "description": "Extracts the complete implementation of one or more functions or methods from one or more files. Use this to inspect specific functions' logic without reading the entire files. You can specify multiple files and multiple functions, it will return an all to all lookup result.",
+    "description": "Extracts the complete implementation of one or more functions or methods from one or more files. Use this to inspect specific functions' logic without reading the entire files. You can specify multiple files and multiple functions, it will return an all to all lookup result. Use dot-separated path to the function.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -281,10 +267,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -305,10 +287,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -318,7 +296,7 @@
   },
   {
     "name": "find_symbol_references",
-    "description": "Finds all exact AST references and invocations of one or more functions, classes, or variables across specified files or directories. Returns precise file paths. Prefer this over greps, only use grep if this fails",
+    "description": "Finds all exact AST references and invocations of one or more functions, classes, or variables across specified files or directories. Returns precise file paths.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -344,10 +322,6 @@
             "reference",
             "both"
           ]
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -372,10 +346,6 @@
         "recursive": {
           "type": "boolean",
           "description": "Whether to list files recursively. Use true for recursive listing, false or omit for top-level only."
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -412,10 +382,6 @@
         "needs_more_exploration": {
           "type": "boolean",
           "description": "Set to true if more exploration is required."
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -425,7 +391,7 @@
   },
   {
     "name": "read_file",
-    "description": "Reads the complete contents of one or more files at the specified paths. Automatically extracts raw text from PDF and DOCX files. Returns the hash anchored lines that you can use with the edit_file tool. You can also specify a line range to read only a specific part of the file(s). Examples: { paths: [\"src/main.ts\", \"package.json\"] }, { paths: [\"src/main.ts\"] }, { paths: [\"src/main.ts\"], start_line: 10, end_line: 50 }, { paths: [\"src/main.ts\"], start_line: 100 }, { paths: [\"src/main.ts\"], end_line: 50 }. ONLY use line range when you only need a small number of lines in a large file.",
+    "description": "Reads the complete contents of one or more files at the specified paths. Automatically extracts raw text from PDF and DOCX files. Returns the hash anchored lines that you can use with the edit_file tool. You can also specify a line range to read only a specific part of the file(s). Examples: { paths: [\"src/main.ts\", \"package.json\"] }, { paths: [\"src/main.ts\"] }, { paths: [\"src/main.ts\"], start_line: 10, end_line: 50 }, { paths: [\"src/main.ts\"], start_line: 100 }, { paths: [\"src/main.ts\"], end_line: 50 }. Consider using surgical tools like get_file_skeleton or get_function over this.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -443,10 +409,6 @@
         "end_line": {
           "type": "integer",
           "description": "Optional. If not supplied, the output will go until the last line"
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -456,7 +418,7 @@
   },
   {
     "name": "search_files",
-    "description": "Regex search across files in a specified directory. Skips non-useful content (.git, node_modules, build artifacts, etc.).",
+    "description": "Regex search across files in a specified directory. Skips non-useful content (.git, node_modules, build artifacts, etc. and all files and directories starting with a dot). Prefer AST tools over this when reasonable.",
     "input_schema": {
       "type": "object",
       "properties": {
@@ -475,10 +437,6 @@
         "context_lines": {
           "type": "string",
           "description": "Optional number of context lines to show before and after each match (0-10, default 0)."
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -489,17 +447,21 @@
   },
   {
     "name": "use_subagents",
-    "description": "Run up to five focused in-process subagents in parallel. Each subagent gets its own prompt and returns a comprehensive research result with tool and token stats. Use this for broad exploration when reading many files would consume the main agent's context window. You do not need to launch multiple subagents every time; using one subagent is valid when it avoids unnecessary context usage for light discovery work.",
+    "description": "Run between two and five focused in-process subagents in parallel. Each subagent gets its own prompt and returns a comprehensive research result. Use this for broad exploration, parallel research across different modules, deep-diving into multiple potential implementations, or concurrent analysis of logs and test results. It's particularly effective for investigating multiple independent paths simultaneously without consuming the main agent's context window.",
     "input_schema": {
       "type": "object",
       "properties": {
+        "include_history": {
+          "type": "string",
+          "description": "Optional boolean to include the main task's conversation history. This benefits from context caching and provides more context, but consumes context window space."
+        },
         "prompt_1": {
           "type": "string",
           "description": "First subagent prompt."
         },
         "prompt_2": {
           "type": "string",
-          "description": "Optional second subagent prompt."
+          "description": "Second subagent prompt."
         },
         "prompt_3": {
           "type": "string",
@@ -512,10 +474,19 @@
         "prompt_5": {
           "type": "string",
           "description": "Optional fifth subagent prompt."
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Optional timeout in seconds for each subagent."
+        },
+        "max_turns": {
+          "type": "string",
+          "description": "Optional maximum number of turns for each subagent."
         }
       },
       "required": [
-        "prompt_1"
+        "prompt_1",
+        "prompt_2"
       ]
     }
   },
@@ -532,10 +503,6 @@
         "prompt": {
           "type": "string",
           "description": "The prompt to use for analyzing the webpage content"
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -561,10 +528,6 @@
         "blocked_domains": {
           "type": "string",
           "description": "JSON array of domains to exclude from results"
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [
@@ -585,10 +548,6 @@
         "content": {
           "type": "string",
           "description": "The COMPLETE intended content of the file. Do not truncate or omit any parts."
-        },
-        "task_progress": {
-          "type": "string",
-          "description": "Updated task progress checklist."
         }
       },
       "required": [

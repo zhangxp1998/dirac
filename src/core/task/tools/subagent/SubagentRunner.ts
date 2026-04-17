@@ -115,7 +115,7 @@ function serializeToolResult(result: unknown): string {
 
 				return JSON.stringify(item)
 			})
-			.join("\n")
+			.join("")
 	}
 
 	return JSON.stringify(result, null, 2)
@@ -229,6 +229,7 @@ export class SubagentRunner {
 	private readonly allowedTools: DiracDefaultTool[]
 	private activeApiAbort: (() => void) | undefined
 	private abortRequested = false
+	private abortReason?: string
 	private activeCommandExecutions = 0
 	private abortingCommands = false
 
@@ -241,8 +242,11 @@ export class SubagentRunner {
 		this.allowedTools = this.agent.getAllowedTools()
 	}
 
-	async abort(): Promise<void> {
+	async abort(reason?: string): Promise<void> {
 		this.abortRequested = true
+		if (reason) {
+			this.abortReason = reason
+		}
 
 		try {
 			this.activeApiAbort?.()
@@ -289,10 +293,19 @@ export class SubagentRunner {
 		}
 	}
 
-	async run(prompt: string, onProgress: (update: SubagentProgressUpdate) => void): Promise<SubagentRunResult> {
+	async run(
+		prompt: string,
+		onProgress: (update: SubagentProgressUpdate) => void,
+		timeout?: number,
+		maxTurns?: number,
+		includeHistory?: boolean,
+	): Promise<SubagentRunResult> {
 		this.abortRequested = false
+		this.abortReason = undefined
 		const state = new TaskState()
 		let emptyAssistantResponseRetries = 0
+		let conversation: DiracStorageMessage[] = []
+		let timeoutHandle: NodeJS.Timeout | undefined
 		const contextState: SubagentContextState = {}
 		const contextManager = new ContextManager()
 		const usageState: SubagentUsageState = {
@@ -323,6 +336,7 @@ export class SubagentRunner {
 			) as string
 			const providerInfo = {
 				providerId,
+				phone: undefined, // Placeholder for missing field if any
 				model: api.getModel(),
 				mode,
 				customPrompt: this.baseConfig.services.stateManager.getGlobalSettingsKey("customPrompt"),
@@ -359,11 +373,27 @@ export class SubagentRunner {
 				enableNativeToolCalls: nativeToolCallsRequested,
 				enableParallelToolCalling: false,
 				isSubagentRun: true,
+				isMultiRootEnabled: this.baseConfig.isMultiRootEnabled,
+				workspaceRoots: this.baseConfig.workspaceManager?.getRoots().map((root) => ({
+					path: root.path,
+					name: root.name || path.basename(root.path),
+					vcs: root.vcs,
+				})),
 			}
 
 			const promptRegistry = PromptRegistry.getInstance()
 			const generatedSystemPrompt = await promptRegistry.get(context)
-			const systemPrompt = this.agent.buildSystemPrompt(generatedSystemPrompt)
+			let systemPrompt = this.agent.buildSystemPrompt(generatedSystemPrompt)
+			if (timeout || maxTurns) {
+				const limits = []
+				if (timeout) {
+					limits.push(`${timeout} seconds`)
+				}
+				if (maxTurns) {
+					limits.push(`${maxTurns} turns`)
+				}
+				systemPrompt += `\n\n# Execution Limits\nYou must complete your task and call attempt_completion within ${limits.join(" and ")}.`
+			}
 			const useNativeToolCalls = !!promptRegistry.nativeTools?.length
 			const nativeTools = useNativeToolCalls ? this.agent.buildNativeTools(context) : undefined
 			const workspaceMetadataEnvironmentBlock = await this.getWorkspaceMetadataEnvironmentBlock()
@@ -373,37 +403,90 @@ export class SubagentRunner {
 				onProgress({ status: "failed", error, stats })
 				return { status: "failed", error, stats }
 			}
-
 			if (this.shouldAbort()) {
 				await this.abort()
-				const error = "Subagent run cancelled."
-				onProgress({ status: "failed", error, stats: { ...stats } })
-				return { status: "failed", error, stats }
+				const reason = this.abortReason || "Subagent run cancelled."
+				const isLimitReached = /timed out|maximum turns/.test(this.abortReason || "")
+
+				if (isLimitReached) {
+					const partialResult = this.getBestEffortResult(conversation)
+					const result = `${reason} This is what I have currently:
+
+${partialResult}`
+					onProgress({ status: "completed", result, stats: { ...stats } })
+					return { status: "completed", result, stats }
+				}
+
+				onProgress({ status: "failed", error: reason, stats: { ...stats } })
+				return { status: "failed", error: reason, stats }
 			}
 
-			const conversation: DiracStorageMessage[] = [
-				{
-					role: "user",
-					content: [
-						{
-							type: "text",
-							text: prompt,
-						} as DiracTextContentBlock,
-						// Server-side task loop checks require workspace metadata to be present in the
-						// initial user message of subagent runs.
-						...(workspaceMetadataEnvironmentBlock
-							? [
-									{
-										type: "text",
-										text: workspaceMetadataEnvironmentBlock,
-									} as DiracTextContentBlock,
-								]
-							: []),
-					],
-				},
-			]
+			if (includeHistory) {
+				conversation = [...this.baseConfig.messageState.getApiConversationHistory()]
+				contextState.conversationHistoryDeletedRange = this.baseConfig.taskState.conversationHistoryDeletedRange
+			}
 
+			conversation.push({
+				role: "user",
+				content: [
+					{
+						type: "text",
+						text: prompt,
+					} as DiracTextContentBlock,
+					// Server-side task loop checks require workspace metadata to be present in the
+					// initial user message of subagent runs.
+					...(workspaceMetadataEnvironmentBlock
+						? [
+								{
+									type: "text",
+									text: workspaceMetadataEnvironmentBlock,
+								} as DiracTextContentBlock,
+						  ]
+						: []),
+				],
+			})
+			if (timeout) {
+				timeoutHandle = setTimeout(() => {
+					void this.abort(`Subagent timed out after ${timeout} seconds.`)
+				}, timeout * 1000)
+			}
+
+			let turnCount = 0
 			while (true) {
+				if (maxTurns && turnCount === maxTurns - 1) {
+					conversation.push({
+						role: "user",
+						content: [
+							{
+								type: "text",
+								text: "NOTE: This is your last turn. You must provide your final findings now using attempt_completion.",
+							} as DiracTextContentBlock,
+						],
+					})
+				}
+
+				if (maxTurns && turnCount >= maxTurns) {
+					void this.abort(`Subagent reached maximum turns (${maxTurns}).`)
+				}
+
+				if (this.shouldAbort()) {
+					await this.abort()
+					const reason = this.abortReason || "Subagent run cancelled."
+					const isLimitReached = /timed out|maximum turns/.test(this.abortReason || "")
+
+					if (isLimitReached) {
+						const partialResult = this.getBestEffortResult(conversation)
+						const result = `${reason} This is what I have currently:
+
+${partialResult}`
+						onProgress({ status: "completed", result, stats: { ...stats } })
+						return { status: "completed", result, stats }
+					}
+
+					onProgress({ status: "failed", error: reason, stats: { ...stats } })
+					return { status: "failed", error: reason, stats }
+				}
+
 				if (
 					usageState.lastRequest &&
 					this.shouldCompactBeforeNextRequest(usageState.lastRequest.totalTokens, api, providerInfo.model.id)
@@ -489,9 +572,20 @@ export class SubagentRunner {
 
 					if (this.shouldAbort()) {
 						await this.abort()
-						const error = "Subagent run cancelled."
-						onProgress({ status: "failed", error, stats: { ...stats } })
-						return { status: "failed", error, stats }
+						const reason = this.abortReason || "Subagent run cancelled."
+						const isLimitReached = /timed out|maximum turns/.test(this.abortReason || "")
+
+						if (isLimitReached) {
+							const partialResult = this.getBestEffortResult(conversation)
+							const result = `${reason} This is what I have currently:
+
+${partialResult}`
+							onProgress({ status: "completed", result, stats: { ...stats } })
+							return { status: "completed", result, stats }
+						}
+
+						onProgress({ status: "failed", error: reason, stats: { ...stats } })
+						return { status: "failed", error: reason, stats }
 					}
 				}
 
@@ -545,6 +639,7 @@ export class SubagentRunner {
 					assistantContent.push({
 						type: "text",
 						text: assistantText,
+						language: undefined, // Placeholder for missing field if any
 						signature: assistantTextSignature,
 					})
 				}
@@ -665,13 +760,25 @@ export class SubagentRunner {
 					content: toolResultBlocks,
 				})
 
+				turnCount++
 				await delay(0)
 			}
 		} catch (error) {
 			if (this.shouldAbort()) {
-				const cancelledError = "Subagent run cancelled."
-				onProgress({ status: "failed", error: cancelledError, stats: { ...stats } })
-				return { status: "failed", error: cancelledError, stats }
+				const reason = this.abortReason || "Subagent run cancelled."
+				const isLimitReached = /timed out|maximum turns/.test(this.abortReason || "")
+
+				if (isLimitReached) {
+					const partialResult = this.getBestEffortResult(conversation)
+					const result = `${reason} This is what I have currently:
+
+${partialResult}`
+					onProgress({ status: "completed", result, stats: { ...stats } })
+					return { status: "completed", result, stats }
+				}
+
+				onProgress({ status: "failed", error: reason, stats: { ...stats } })
+				return { status: "failed", error: reason, stats }
 			}
 
 			const errorText = (error as Error).message || "Subagent execution failed."
@@ -679,8 +786,31 @@ export class SubagentRunner {
 			onProgress({ status: "failed", error: errorText, stats: { ...stats } })
 			return { status: "failed", error: errorText, stats }
 		} finally {
+			if (typeof timeoutHandle !== "undefined") {
+				clearTimeout(timeoutHandle)
+			}
 			this.activeApiAbort = undefined
 		}
+	}
+
+	private getBestEffortResult(conversation: DiracStorageMessage[]): string {
+		const assistantTexts = conversation
+			.filter((msg) => msg.role === "assistant")
+			.flatMap((msg) => {
+				if (typeof msg.content === "string") {
+					return [{ type: "text", text: msg.content } as DiracTextContentBlock]
+				}
+				return msg.content as DiracTextContentBlock[]
+			})
+			.filter((block): block is DiracTextContentBlock => block.type === "text")
+			.map((block) => block.text.trim())
+			.filter((text) => text.length > 0)
+
+		if (assistantTexts.length === 0) {
+			return "No findings recorded."
+		}
+
+		return assistantTexts.join("\n")
 	}
 
 	private createSubagentTaskConfig(state: TaskState): TaskConfig {

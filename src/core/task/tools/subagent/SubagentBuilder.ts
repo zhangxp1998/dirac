@@ -10,33 +10,14 @@ import { AgentConfigLoader } from "./AgentConfigLoader"
 
 export type AgentConfig = Partial<AgentBaseConfig>
 
-export const SUBAGENT_DEFAULT_ALLOWED_TOOLS: DiracDefaultTool[] = [
-	DiracDefaultTool.FILE_READ,
-	DiracDefaultTool.LIST_FILES,
-	DiracDefaultTool.SEARCH,
-	DiracDefaultTool.BASH,
-	DiracDefaultTool.USE_SKILL,
-	DiracDefaultTool.ATTEMPT,
-	DiracDefaultTool.GET_FUNCTION,
-	DiracDefaultTool.GET_FILE_SKELETON,
-	DiracDefaultTool.FIND_SYMBOL_REFERENCES,
-	DiracDefaultTool.DIAGNOSTICS_SCAN,
-	DiracDefaultTool.WEB_SEARCH,
-	DiracDefaultTool.WEB_FETCH,
-]
+export const SUBAGENT_DEFAULT_ALLOWED_TOOLS: DiracDefaultTool[] = Object.values(DiracDefaultTool).filter(
+	(tool) => tool !== DiracDefaultTool.USE_SUBAGENTS
+)
 
 export const SUBAGENT_SYSTEM_SUFFIX = `\n\n# Subagent Execution Mode
-You are running as a research subagent. Your job is to explore the codebase and gather information to answer the question.
-Explore, read related files, trace through call chains, and build a complete picture before reporting back.
-You can read files, list directories, search for patterns, list code definitions, and run commands.
-Only use execute_command for readonly operations like ls, grep, git log, git diff, gh, etc.
-When it makes sense, be clever about chaining commands or in-command scripting in execute_command to quickly get relevant context - and using pipes / filters to help narrow results.
-Do not run commands that modify files or system state.
-When you have a comprehensive answer, call the attempt_completion tool.
-The attempt_completion result field is sent directly to the main agent, so put your full final findings there.
-Unless the subagent prompt explicitly asks for detailed analysis, keep the result concise and focus on the files the main agent should read next.
-Include a section titled "Relevant file paths" and list only file paths, one per line.
-Do not include line numbers, summaries, or per-file explanations unless explicitly requested.
+ou are running as a research subagent spawned by the main agent. Perform the requested task and report back.
+You may use any tool at your disposal to accomplish the task. You may create and execute scripts or temporary files, but **do not modify or delete any pre-existing files**.
+Call attempt_completion when finished or if you realize the task is not making any progress or otherwise ill suited to let main agent know. Focus on providing actionable information and relevant file paths.
 `
 
 export class SubagentBuilder {
@@ -82,7 +63,7 @@ export class SubagentBuilder {
 
 	buildNativeTools(context: SystemPromptContext) {
 		const toolSpecs = DiracToolSet.getEnabledToolSpecs(context)
-		const filteredToolSpecs = toolSpecs.filter((toolSpec) => this.allowedTools.includes(toolSpec.id))
+		const filteredToolSpecs = toolSpecs
 
 		const converter = DiracToolSet.getNativeConverter(context.providerInfo.providerId, context.providerInfo.model.id)
 		return filteredToolSpecs.map((tool) => converter(tool, context))

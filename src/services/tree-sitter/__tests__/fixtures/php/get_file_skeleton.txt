@@ -1,5 +1,6 @@
 --- sample.php ---
-|----
+Stable Anchors are provided with each line.
+ |----
 │namespace SampleNamespace;
 |----
 │class PhpClass

@@ -1,5 +1,3 @@
-sample.swift::extensionMethod
-[Function Hash: e04133e7]
-func extensionMethod() {
-        print("extension")
-    }
+None of the requested functions (SwiftClass.extensionMethod) were found in sample.swift
+
+Note: The following functions were not found in any of the provided files: SwiftClass.extensionMethod

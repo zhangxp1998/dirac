@@ -7,9 +7,14 @@ export const subagent: DiracToolSpec = {
 	id,
 	name: "use_subagents",
 	description:
-		"Run up to five focused in-process subagents in parallel. Each subagent gets its own prompt and returns a comprehensive research result with tool and token stats. Use this for broad exploration when reading many files would consume the main agent's context window. You do not need to launch multiple subagents every time; using one subagent is valid when it avoids unnecessary context usage for light discovery work.",
-	contextRequirements: (context) => context.subagentsEnabled === true && !context.isSubagentRun,
+		"Run between two and five focused in-process subagents in parallel. Each subagent gets its own prompt and returns a comprehensive research result. Use this for broad exploration, parallel research across different modules, deep-diving into multiple potential implementations, or concurrent analysis of logs and test results. It's particularly effective for investigating multiple independent paths simultaneously without consuming the main agent's context window.",
+	contextRequirements: (context) => context.subagentsEnabled === true,
 	parameters: [
+		{
+			name: "include_history",
+			required: false,
+			instruction: "Optional boolean to include the main task's conversation history. This benefits from context caching and provides more context, but consumes context window space.",
+		},
 		{
 			name: "prompt_1",
 			required: true,
@@ -17,8 +22,8 @@ export const subagent: DiracToolSpec = {
 		},
 		{
 			name: "prompt_2",
-			required: false,
-			instruction: "Optional second subagent prompt.",
+			required: true,
+			instruction: "Second subagent prompt.",
 		},
 		{
 			name: "prompt_3",
@@ -34,6 +39,16 @@ export const subagent: DiracToolSpec = {
 			name: "prompt_5",
 			required: false,
 			instruction: "Optional fifth subagent prompt.",
+		},
+		{
+			name: "timeout",
+			required: false,
+			instruction: "Optional timeout in seconds for each subagent.",
+		},
+		{
+			name: "max_turns",
+			required: false,
+			instruction: "Optional maximum number of turns for each subagent.",
 		},
 	],
 }

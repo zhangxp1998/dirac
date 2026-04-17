@@ -1,6 +1,3 @@
-sample.go::GetName
-[Function Hash: 14454b9b]
-// GetName is a method on GoStruct.
-func (s *GoStruct) GetName() string {
-	return s.Name
-}
+None of the requested functions (GoStruct.GetName) were found in sample.go
+
+Note: The following functions were not found in any of the provided files: GoStruct.GetName

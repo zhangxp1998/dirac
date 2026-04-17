@@ -142,7 +142,7 @@ describe("ReadFileToolHandler.execute – file not found", () => {
 		const result = await handler.execute(config, makeBlock("no-such-file.py"))
 
 		assert.equal(typeof result, "string")
-		assert.ok((result as string).includes("File not found"))
+		assert.ok((result as string).includes("Error reading file:"))
 		assert.equal(taskState.consecutiveMistakeCount, 1)
 	})
 

@@ -1,5 +1,6 @@
 --- sample.ts ---
-|----
+Stable Anchors are provided with each line.
+ |----
 │interface MyInterface {
 │    # Lines: 4
 |----

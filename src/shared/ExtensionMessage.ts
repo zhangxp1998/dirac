@@ -341,6 +341,8 @@ export interface SubagentStatusItem {
 	toolCalls: number
 	inputTokens: number
 	outputTokens: number
+	cacheWrites: number
+	cacheReads: number
 	totalCost: number
 	contextTokens: number
 	contextWindow: number
@@ -359,6 +361,8 @@ export interface DiracSaySubagentStatus {
 	toolCalls: number
 	inputTokens: number
 	outputTokens: number
+	cacheWrites: number
+	cacheReads: number
 	contextWindow: number
 	maxContextTokens: number
 	maxContextUsagePercentage: number
@@ -374,6 +378,9 @@ export type BrowserActionResult = {
 
 export interface DiracAskUseSubagents {
 	prompts: string[]
+	timeout?: number
+	max_turns?: number
+	include_history?: boolean
 }
 
 export interface DiracPlanModeResponse {

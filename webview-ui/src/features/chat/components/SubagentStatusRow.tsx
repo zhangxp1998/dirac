@@ -104,6 +104,8 @@ function parseSubagentRowData(message: DiracMessage): SubagentRowData | null {
 					contextTokens: 0,
 					contextWindow: 0,
 					contextUsagePercentage: 0,
+					cacheWrites: 0,
+					cacheReads: 0,
 				})),
 			}
 		}
@@ -244,7 +246,8 @@ export default function SubagentStatusRow({ message, isLast, lastModifiedMessage
 					const isStreamingPromptUnderConstruction =
 						isPromptConstructionRow && message.partial === true && index === data.items.length - 1
 					const shouldShowStats = !isStreamingPromptUnderConstruction
-					const statsText = `${formatCount(entry.toolCalls)} tools called · ${formatCount(entry.contextTokens)} tokens · ${formatCost(entry.totalCost)}`
+					const cacheInfo = (entry.cacheWrites || entry.cacheReads) ? ` · cache: ${formatCount(entry.cacheReads)}r/${formatCount(entry.cacheWrites)}w` : ""
+					const statsText = `${formatCount(entry.toolCalls)} tools called · ${formatCount(entry.contextTokens)} tokens${cacheInfo} · ${formatCost(entry.totalCost)}`
 					const latestToolCallText = entry.latestToolCall?.trim() || ""
 					return (
 						<div

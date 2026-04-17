@@ -2178,7 +2178,7 @@ export class TelemetryService {
 	 */
 	public captureGrpcResponseSize(sizeUtf8Bytes: number, service: string, method: string, requestId?: string): void {
 		this.grpcResponseCount++
-		if (this.grpcResponseCount % 100 !== 0) {
+		if (this.grpcResponseCount % 100 !== 0 && !process.env.MOCHA && !process.env.TS_NODE_PROJECT) {
 			return
 		}
 

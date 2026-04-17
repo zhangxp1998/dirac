@@ -18,7 +18,7 @@ import type { TaskConfig } from "../types/TaskConfig"
 import type { StronglyTypedUIHelpers } from "../types/UIHelpers"
 import { ToolResultUtils } from "../utils/ToolResultUtils"
 
-const MAX_FILE_READ_SIZE = 30 * 1024 // 30KB limit for full file reads
+const MAX_FILE_READ_SIZE = 50 * 1024 // 50KB limit for full file reads
 export class ReadFileToolHandler implements IFullyManagedTool {
 	readonly name = DiracDefaultTool.FILE_READ
 
@@ -238,7 +238,7 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 						| "primary_fallback",
 				})
 
-				// 3. Safety check: prevent reading files larger than 30KB without line range
+				// 3. Safety check: prevent reading files too large
 				if (!startLineNum && !endLineNum) {
 					const stats = await fs.stat(absolutePath)
 					const ext = path.extname(absolutePath).toLowerCase()

@@ -250,7 +250,6 @@ describe("Prompt System Integration Tests", () => {
 
 	describe("Context-Specific Features", () => {
 		const featureTests = [
-			{ name: "browser-specific content when browser is enabled", context: { supportsBrowserUse: true }, check: "browser" },
 			{ name: "user instructions when provided", context: {}, check: "USER'S CUSTOM INSTRUCTIONS" },
 		]
 

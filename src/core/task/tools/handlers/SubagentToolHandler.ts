@@ -60,11 +60,23 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 					.map((prompt) => prompt?.trim())
 					.filter((prompt): prompt is string => !!prompt)
 
+		const timeoutRaw = uiHelpers.removeClosingTag(block, "timeout", String(block.params.timeout ?? ""))?.trim()
+		const maxTurnsRaw = uiHelpers.removeClosingTag(block, "max_turns", String(block.params.max_turns ?? ""))?.trim()
+		const includeHistoryRaw = uiHelpers.removeClosingTag(block, "include_history", String(block.params.include_history ?? ""))?.trim()
+		const timeout = timeoutRaw ? parseInt(timeoutRaw, 10) : undefined
+		const maxTurns = maxTurnsRaw ? parseInt(maxTurnsRaw, 10) : undefined
+		const includeHistory = includeHistoryRaw === "true" || includeHistoryRaw === "1" || block.params.include_history === true
+
 		if (prompts.length === 0) {
 			return
 		}
 
-		const partialMessage = JSON.stringify({ prompts } satisfies DiracAskUseSubagents)
+		const partialMessage = JSON.stringify({
+			prompts,
+			timeout: isNaN(timeout as number) ? undefined : timeout,
+			max_turns: isNaN(maxTurns as number) ? undefined : maxTurns,
+			include_history: includeHistory || undefined,
+		} satisfies DiracAskUseSubagents)
 		const autoApproveResult = uiHelpers.shouldAutoApproveTool(this.name)
 		const [shouldAutoApprove] = Array.isArray(autoApproveResult) ? autoApproveResult : [autoApproveResult, false]
 
@@ -78,6 +90,10 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 	}
 
 	async execute(config: TaskConfig, block: ToolUse): Promise<ToolResponse> {
+		if (config.isSubagentExecution) {
+			return formatResponse.toolError("Subagents cannot spawn other subagents.")
+		}
+
 		const subagentsEnabled = config.services.stateManager.getGlobalSettingsKey("subagentsEnabled")
 		if (!subagentsEnabled) {
 			return formatResponse.toolError("Subagents are disabled. Enable them in Settings > Features to use this tool.")
@@ -87,6 +103,17 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 		Logger.debug(`[SubagentToolHandler] Executing subagent tool: ${block.name}, resolved name: ${configuredSubagentName}`)
 		const prompts = collectPrompts(block, configuredSubagentName)
 		Logger.debug(`[SubagentToolHandler] Collected prompts:`, prompts)
+
+		const timeout = block.params.timeout ? parseInt(String(block.params.timeout), 10) : undefined
+		const maxTurns = block.params.max_turns ? parseInt(String(block.params.max_turns), 10) : undefined
+		const includeHistory = block.params.include_history === true || String(block.params.include_history) === "true" || String(block.params.include_history) === "1"
+
+		if (timeout !== undefined && (isNaN(timeout) || timeout <= 0)) {
+			return formatResponse.toolError("timeout must be a positive number.")
+		}
+		if (maxTurns !== undefined && (isNaN(maxTurns) || maxTurns <= 0)) {
+			return formatResponse.toolError("max_turns must be a positive number.")
+		}
 
 		if (prompts.length === 0) {
 			config.taskState.consecutiveMistakeCount++
@@ -103,7 +130,7 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 		const apiConfig = config.services.stateManager.getApiConfiguration()
 		const currentMode = config.services.stateManager.getGlobalSettingsKey("mode")
 		const provider = (currentMode === "plan" ? apiConfig.planModeApiProvider : apiConfig.actModeApiProvider) as string
-		const approvalPayload: DiracAskUseSubagents = { prompts }
+		const approvalPayload: DiracAskUseSubagents = { prompts, timeout, max_turns: maxTurns, include_history: includeHistory }
 		const approvalBody = JSON.stringify(approvalPayload)
 
 		const autoApproveResult = config.autoApprover?.shouldAutoApproveTool(this.name)
@@ -163,6 +190,8 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 			toolCalls: 0,
 			inputTokens: 0,
 			outputTokens: 0,
+			cacheWrites: 0,
+			cacheReads: 0,
 			totalCost: 0,
 			contextTokens: 0,
 			contextWindow: 0,
@@ -177,6 +206,8 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 			const toolCalls = entries.reduce((acc, entry) => acc + (entry.toolCalls || 0), 0)
 			const inputTokens = entries.reduce((acc, entry) => acc + (entry.inputTokens || 0), 0)
 			const outputTokens = entries.reduce((acc, entry) => acc + (entry.outputTokens || 0), 0)
+			const cacheWrites = entries.reduce((acc, entry) => acc + (entry.cacheWrites || 0), 0)
+			const cacheReads = entries.reduce((acc, entry) => acc + (entry.cacheReads || 0), 0)
 			const contextWindow = entries.reduce((acc, entry) => Math.max(acc, entry.contextWindow || 0), 0)
 			const maxContextTokens = entries.reduce((acc, entry) => Math.max(acc, entry.contextTokens || 0), 0)
 			const maxContextUsagePercentage = entries.reduce((acc, entry) => Math.max(acc, entry.contextUsagePercentage || 0), 0)
@@ -190,6 +221,8 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 				toolCalls,
 				inputTokens,
 				outputTokens,
+				cacheWrites,
+				cacheReads,
 				contextWindow,
 				maxContextTokens,
 				maxContextUsagePercentage,
@@ -220,37 +253,45 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 		}, 100)
 
 		const execution = prompts.map((prompt, index) =>
-			runners[index].run(prompt, async (update) => {
-				const current = entries[index]
-				if (update.status === "running") {
-					current.status = "running"
-				}
-				if (update.status === "completed") {
-					current.status = "completed"
-				}
-				if (update.status === "failed") {
-					current.status = "failed"
-				}
-				if (update.result !== undefined) {
-					current.result = update.result
-				}
-				if (update.error !== undefined) {
-					current.error = update.error
-				}
-				if (update.latestToolCall !== undefined) {
-					current.latestToolCall = update.latestToolCall
-				}
-				if (update.stats) {
-					current.toolCalls = update.stats.toolCalls || 0
-					current.inputTokens = update.stats.inputTokens || 0
-					current.outputTokens = update.stats.outputTokens || 0
-					current.totalCost = update.stats.totalCost || 0
-					current.contextTokens = update.stats.contextTokens || 0
-					current.contextWindow = update.stats.contextWindow || 0
-					current.contextUsagePercentage = update.stats.contextUsagePercentage || 0
-				}
-				await queueStatusUpdate("running", true)
-			}),
+			runners[index].run(
+				prompt,
+				async (update) => {
+					const current = entries[index]
+					if (update.status === "running") {
+						current.status = "running"
+					}
+					if (update.status === "completed") {
+						current.status = "completed"
+					}
+					if (update.status === "failed") {
+						current.status = "failed"
+					}
+					if (update.result !== undefined) {
+						current.result = update.result
+					}
+					if (update.error !== undefined) {
+						current.error = update.error
+					}
+					if (update.latestToolCall !== undefined) {
+						current.latestToolCall = update.latestToolCall
+					}
+					if (update.stats) {
+						current.toolCalls = update.stats.toolCalls || 0
+						current.inputTokens = update.stats.inputTokens || 0
+						current.outputTokens = update.stats.outputTokens || 0
+						current.cacheWrites = update.stats.cacheWriteTokens || 0
+						current.cacheReads = update.stats.cacheReadTokens || 0
+						current.totalCost = update.stats.totalCost || 0
+						current.contextTokens = update.stats.contextTokens || 0
+						current.contextWindow = update.stats.contextWindow || 0
+						current.contextUsagePercentage = update.stats.contextUsagePercentage || 0
+					}
+					await queueStatusUpdate("running", true)
+				},
+				timeout,
+				maxTurns,
+				includeHistory,
+			),
 		)
 
 		const settled = await Promise.allSettled(execution)
@@ -272,6 +313,8 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 			entries[index].toolCalls = result.value.stats.toolCalls || 0
 			entries[index].inputTokens = result.value.stats.inputTokens || 0
 			entries[index].outputTokens = result.value.stats.outputTokens || 0
+			entries[index].cacheWrites = result.value.stats.cacheWriteTokens || 0
+			entries[index].cacheReads = result.value.stats.cacheReadTokens || 0
 			entries[index].totalCost = result.value.stats.totalCost || 0
 			entries[index].contextTokens = result.value.stats.contextTokens || 0
 			entries[index].contextWindow = result.value.stats.contextWindow || 0
@@ -305,18 +348,23 @@ export class UseSubagentsToolHandler implements IFullyManagedTool {
 
 		const summary = [
 			"Subagent results:",
+			timeout ? `Timeout: ${timeout}s` : undefined,
+			maxTurns ? `Max turns: ${maxTurns}` : undefined,
 			`Total: ${entries.length}`,
 			`Succeeded: ${successCount}`,
 			`Failed: ${failures}`,
 			`Tool calls: ${totalToolCalls}`,
 			`Peak context usage: ${maxContextTokens.toLocaleString()} / ${contextWindow.toLocaleString()} (${maxContextUsagePercentage.toFixed(1)}%)`,
+			`Cache: ${usageCacheReads.toLocaleString()} reads, ${usageCacheWrites.toLocaleString()} writes`,
 			"",
 			...entries.map((entry) => {
 				const header = `[${entry.index}] ${entry.status.toUpperCase()} - ${entry.prompt}`
 				const detail = entry.status === "completed" ? excerpt(entry.result) : excerpt(entry.error)
 				return detail ? `${header}\n${detail}` : header
 			}),
-		].join("\n")
+		]
+			.filter((line): line is string => line !== undefined)
+			.join("\n")
 
 		return formatResponse.toolResult(summary)
 	}

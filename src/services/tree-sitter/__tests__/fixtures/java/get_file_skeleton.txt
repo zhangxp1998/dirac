@@ -1,5 +1,6 @@
 --- sample.java ---
-|----
+Stable Anchors are provided with each line.
+ |----
 │package com.example;
 |----
 │public class JavaClass {

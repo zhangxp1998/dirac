@@ -1,5 +1,6 @@
 --- sample.cs ---
-|----
+Stable Anchors are provided with each line.
+ |----
 │namespace SampleNamespace
 |----
 │    public class CSharpClass
