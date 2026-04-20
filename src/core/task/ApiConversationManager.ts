@@ -82,6 +82,7 @@ export class ApiConversationManager {
 	public async determineContextCompaction(previousApiReqIndex: number): Promise<boolean> {
 		let shouldCompact = false
 		const useAutoCondense = this.dependencies.stateManager.getGlobalSettingsKey("useAutoCondense")
+		const autoCondenseThreshold = useAutoCondense ? 0.75 : undefined
 
 		if (useAutoCondense) {
 			// When we initially trigger context cleanup, we increase the context window size, so we need state `currentlySummarizing`
@@ -106,6 +107,7 @@ export class ApiConversationManager {
 					this.dependencies.messageStateHandler.getDiracMessages(),
 					this.dependencies.api,
 					previousApiReqIndex,
+					autoCondenseThreshold,
 				)
 
 				// Edge case: summarize_task tool call completes but user cancels next request before it finishes.

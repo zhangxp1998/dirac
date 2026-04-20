@@ -51,6 +51,7 @@ export interface SystemPromptContext {
 	readonly activeShellPath?: string
 	readonly activeShellIsPosix?: boolean
 	readonly availableCores?: number
+	readonly shouldCompact?: boolean
 }
 
 

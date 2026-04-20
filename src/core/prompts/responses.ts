@@ -231,7 +231,7 @@ Otherwise, if you have not completed the task and do not need additional informa
 	},
 
 	planModeInstructions: () => {
-		return `Gather all necessary context to architect a solution before responding to the user. Once ready, present your plan for discussion. If the user asks you to make changes, tell them to manually "toggle to Act mode" (you cannot switch modes yourself).`
+		return `Gather all necessary context to architect a solution before responding to the user. Once ready, present your plan for discussion. You are not allowed make code changes in this mode. If the user asks you to make changes, tell them to manually "toggle to Act mode" (you cannot switch modes yourself).`
 	},
 
 	fileEditWithUserChanges: (

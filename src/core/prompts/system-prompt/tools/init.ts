@@ -17,6 +17,7 @@ import { replace_symbol } from "./replace_symbol"
 import { rename_symbol } from "./rename_symbol"
 import { search_files } from "./search_files"
 import { subagent } from "./subagent"
+import { summarize_task } from "./summarize_task"
 import { use_skill } from "./use_skill"
 import { web_fetch } from "./web_fetch"
 import { web_search } from "./web_search"
@@ -29,6 +30,7 @@ export function registerDiracToolSets(): void {
 	const allTools = [
 		ask_followup_question,
 		attempt_completion,
+		summarize_task,
 		diagnostics_scan,
 		browser_action,
 		edit_file,

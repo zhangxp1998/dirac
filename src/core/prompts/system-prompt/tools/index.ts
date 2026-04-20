@@ -1,5 +1,6 @@
 export * from "./ask_followup_question"
 export * from "./attempt_completion"
+export * from "./summarize_task"
 export * from "./browser_action"
 export * from "./edit_file"
 export * from "./execute_command"

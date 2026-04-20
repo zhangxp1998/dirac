@@ -74,6 +74,7 @@ export const toolParamNames = [
 	"replacements",
 	"existing_symbol",
 	"new_symbol",
+	"required_files",
 ] as const
 
 export type ToolParamName = (typeof toolParamNames)[number]

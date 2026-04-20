@@ -237,6 +237,11 @@ export class ToolExecutor {
 	 */
 	private async handleError(action: string, error: Error, block: ToolUse): Promise<void> {
 		const errorString = `Error ${action}: ${error.message}`
+
+		// Clear any partial UI state for this tool to avoid "stuck" state
+		await this.removeLastPartialMessageIfExistsWithType("say", "tool")
+		await this.removeLastPartialMessageIfExistsWithType("ask", "tool")
+
 		await this.say("error", errorString)
 
 		// Create error response for the tool
@@ -321,6 +326,11 @@ export class ToolExecutor {
 				const reason = block.partial
 					? "Tool was interrupted and not executed due to user rejecting a previous tool."
 					: "Skipping tool due to user rejecting a previous tool."
+
+				// Clear any partial UI state for this tool
+				await this.removeLastPartialMessageIfExistsWithType("say", "tool")
+				await this.removeLastPartialMessageIfExistsWithType("ask", "tool")
+
 				this.createToolRejectionMessage(block, reason)
 				return true
 			}
@@ -354,7 +364,14 @@ export class ToolExecutor {
 			}
 
 			// Handle complete blocks
+
 			await this.handleCompleteBlock(block, config)
+
+			// Final safety cleanup: ensure no partial UI state remains for this tool call
+			// This handles cases where a tool handler might return early without clearing its partial UI
+			await this.removeLastPartialMessageIfExistsWithType("say", "tool")
+			await this.removeLastPartialMessageIfExistsWithType("ask", "tool")
+
 			return true
 		} catch (error) {
 			await this.handleError(`executing ${block.name}`, error as Error, block)

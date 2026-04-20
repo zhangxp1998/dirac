@@ -873,7 +873,7 @@ export class Task {
 		return this.apiConversationManager.handleContextWindowExceededError()
 	}
 
-	async *attemptApiRequest(previousApiReqIndex: number): ApiStream {
+	async *attemptApiRequest(previousApiReqIndex: number, shouldCompact?: boolean): ApiStream {
 		const providerInfo = this.getCurrentProviderInfo()
 		const host = await HostProvider.env.getHostVersion({})
 		const ide = host?.platform || "Unknown"
@@ -995,6 +995,7 @@ export class Task {
 			activeShellPath: shellInfo.path,
 			activeShellIsPosix: shellInfo.isPosix,
 			availableCores: getAvailableCores(),
+			shouldCompact,
 		}
 
 		// Notify user if any conditional rules were applied for this request
@@ -1223,7 +1224,7 @@ ${notice}`
 				this.taskState.didAutomaticallyRetryFailedApiRequest = false
 			}
 			// delegate generator output from the recursive call
-			yield* this.attemptApiRequest(previousApiReqIndex)
+			yield* this.attemptApiRequest(previousApiReqIndex, shouldCompact)
 			return
 		}
 
@@ -1363,11 +1364,13 @@ ${notice}`
 					await this.diffViewProvider.revertChanges()
 				}
 
-				const lastMessage = this.messageStateHandler.getDiracMessages().at(-1)
-				if (lastMessage?.partial) {
-					lastMessage.partial = false
-					Logger.log("updating partial message", lastMessage)
-				}
+				const diracMessages = this.messageStateHandler.getDiracMessages()
+				diracMessages.forEach((msg) => {
+					if (msg.partial) {
+						msg.partial = false
+						Logger.log("updating partial message", msg)
+					}
+				})
 				await finalizeApiReqMsg(cancelReason, streamingFailedMessage)
 				await this.messageStateHandler.saveDiracMessagesAndUpdateHistory()
 
@@ -1425,7 +1428,7 @@ ${notice}`
 			this.taskState.toolUseIdMap.clear()
 
 			const { toolUseHandler, reasonsHandler } = this.streamHandler.getHandlers()
-			const stream = this.attemptApiRequest(previousApiReqIndex)
+			const stream = this.attemptApiRequest(previousApiReqIndex, shouldCompact)
 
 			let assistantMessageId = ""
 			let assistantMessage = ""

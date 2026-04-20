@@ -16,49 +16,6 @@ interface MinimaxHandlerOptions extends CommonApiHandlerOptions {
 	thinkingBudgetTokens?: number
 }
 
-/**
- * Creates a simple tool call processor for MiniMax to accumulate arguments.
- * MiniMax uses Anthropic API format which streams partial JSON.
- */
-function createToolCallProcessor() {
-	const accumulatedArgs = new Map<string, string>()
-	const toolCallState = new Map<string, { id: string; name: string }>()
-
-	return {
-		accumulateArguments(id: string, name: string, partial: string): boolean {
-			// Store tool call info
-			toolCallState.set(id, { id, name })
-
-			// Accumulate arguments
-			const current = accumulatedArgs.get(id) || ""
-			accumulatedArgs.set(id, current + partial)
-
-			// Try to parse - if complete, return true
-			try {
-				const args = accumulatedArgs.get(id) || ""
-				JSON.parse(args)
-				return true // Complete JSON received
-			} catch {
-				return false // Incomplete JSON
-			}
-		},
-		getToolCalls(): Array<{ id: string; name: string; arguments: string }> {
-			const results: Array<{ id: string; name: string; arguments: string }> = []
-			for (const [id, state] of toolCallState) {
-				const args = accumulatedArgs.get(id)
-				if (args) {
-					results.push({ id: state.id, name: state.name, arguments: args })
-				}
-			}
-			return results
-		},
-		clear() {
-			accumulatedArgs.clear()
-			toolCallState.clear()
-		},
-	}
-}
-
 export class MinimaxHandler implements ApiHandler {
 	private options: MinimaxHandlerOptions
 	private client: Anthropic | undefined
@@ -117,7 +74,6 @@ export class MinimaxHandler implements ApiHandler {
 		})
 
 		const lastStartedToolCall = { id: "", name: "", arguments: "" }
-		let toolCallProcessor: ReturnType<typeof createToolCallProcessor> | null = null
 
 		for await (const chunk of stream) {
 			switch (chunk?.type) {
@@ -167,11 +123,6 @@ export class MinimaxHandler implements ApiHandler {
 								lastStartedToolCall.id = chunk.content_block.id
 								lastStartedToolCall.name = chunk.content_block.name
 								lastStartedToolCall.arguments = ""
-
-								// Initialize tool call processor for this conversation
-								if (!toolCallProcessor) {
-									toolCallProcessor = createToolCallProcessor()
-								}
 							}
 							break
 						case "text":
@@ -217,41 +168,23 @@ export class MinimaxHandler implements ApiHandler {
 							break
 						case "input_json_delta":
 							if (lastStartedToolCall.id && lastStartedToolCall.name && chunk.delta.partial_json) {
-								// Accumulate the partial JSON arguments
-								lastStartedToolCall.arguments += chunk.delta.partial_json
-
-								// Check if we have a complete JSON object to yield
-								// The ToolCallProcessor expects a specific format, so we construct it here
-								if (toolCallProcessor) {
-									toolCallProcessor.accumulateArguments(
-										lastStartedToolCall.id,
-										lastStartedToolCall.name,
-										chunk.delta.partial_json,
-									)
+								yield {
+									type: "tool_calls",
+									tool_call: {
+										...lastStartedToolCall,
+										function: {
+											...lastStartedToolCall,
+											id: lastStartedToolCall.id,
+											name: lastStartedToolCall.name,
+											arguments: chunk.delta.partial_json,
+										},
+									},
 								}
 							}
 							break
 					}
 					break
 				case "content_block_stop":
-					// Yield any complete tool calls accumulated during this block
-					if (toolCallProcessor) {
-						const toolCalls = toolCallProcessor.getToolCalls()
-						for (const tc of toolCalls) {
-							yield {
-								type: "tool_calls",
-								tool_call: {
-									call_id: tc.id,
-									function: {
-										id: tc.id,
-										name: tc.name,
-										arguments: tc.arguments,
-									},
-								},
-							}
-						}
-						toolCallProcessor.clear()
-					}
 					lastStartedToolCall.id = ""
 					lastStartedToolCall.name = ""
 					lastStartedToolCall.arguments = ""

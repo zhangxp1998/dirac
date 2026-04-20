@@ -58,8 +58,7 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 	let hasEmittedTaskStarted = false
 	// Track which messages have been processed (by timestamp)
 	const processedMessages = new Map<number, string>()
-	const streamedMessages = new Set<number>()
-	const lastProcessedPartialText = new Map<number, string>()
+	const lastProcessedPartialMessages = new Map<number, DiracMessage>()
 
 	const isViewTaskOnly = Boolean(options.taskId) && !prompt
 
@@ -67,6 +66,16 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 	// before we sent our new prompt. This timestamp marks the cutoff - only completion
 	// results AFTER this time should trigger task completion.
 	const completionCutoffTs = Date.now()
+
+	const printPendingPartials = () => {
+		for (const partialMsg of Array.from(lastProcessedPartialMessages.values()).sort(
+			(a, b) => (a.ts || 0) - (b.ts || 0),
+		)) {
+			handleMessageForPipeMode(partialMsg, true, yolo || false)
+		}
+		lastProcessedPartialMessages.clear()
+	}
+
 
 	const emitTaskStarted = () => {
 		if (hasEmittedTaskStarted) {
@@ -87,60 +96,51 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 		const text = message.text || ""
 		const ts = message.ts || 0
 
-		// In verbose mode, we want to see partial messages if the text has changed
-		if (verbose && message.partial) {
-			const lastText = lastProcessedPartialText.get(ts) || ""
-			if (lastText === text) {
-				return
+		if (message.partial) {
+			if (!jsonOutput && verbose) {
+				lastProcessedPartialMessages.set(ts, message)
 			}
-			const delta = text.slice(lastText.length)
-			const isFirstDelta = !streamedMessages.has(ts)
-			streamedMessages.add(ts)
-			lastProcessedPartialText.set(ts, text)
-			handleMessageForPipeMode(message, verbose || false, yolo || false, { delta, isFirstDelta }, true)
-		} else if (message.partial || (processedMessages.has(ts) && processedMessages.get(ts) === text)) {
 			return
+		}
+
+		// Message is complete
+		lastProcessedPartialMessages.delete(ts)
+
+		if (processedMessages.has(ts) && processedMessages.get(ts) === text) {
+			return
+		}
+
+		// JSON mode: stream all messages to stdout (existing behavior)
+		if (jsonOutput) {
+			process.stdout.write(JSON.stringify(message) + "\n")
 		} else {
-			// JSON mode: stream all messages to stdout (existing behavior)
-			if (jsonOutput) {
-				process.stdout.write(JSON.stringify(message) + "\n")
-			} else {
-				const wasStreamed = streamedMessages.has(ts)
-				const isUpdate = processedMessages.has(ts)
-				handleMessageForPipeMode(
-					message,
-					verbose || false,
-					yolo || false,
-					wasStreamed ? { isLastDelta: true } : undefined,
-					isUpdate,
-				)
-			}
+			handleMessageForPipeMode(message, verbose || false, yolo || false, processedMessages.has(ts))
+		}
 
-			processedMessages.set(ts, message.text ?? "")
+		processedMessages.set(ts, text)
 
-			// Auto-approve if yolo mode is on and it's an approval request
-			if (
-				yolo &&
-				message.type === "ask" &&
-				(message.ask === "tool" ||
-					message.ask === "command" ||
-					message.ask === "browser_action_launch" ||
-					message.ask === "plan_mode_respond" ||
-					message.ask === "act_mode_respond")
-			) {
-				controller.task?.handleWebviewAskResponse("yesButtonClicked")
-			}
+		// Auto-approve if yolo mode is on and it's an approval request
+		if (
+			yolo &&
+			message.type === "ask" &&
+			(message.ask === "tool" ||
+				message.ask === "command" ||
+				message.ask === "browser_action_launch" ||
+				message.ask === "plan_mode_respond" ||
+				message.ask === "act_mode_respond")
+		) {
+			controller.task?.handleWebviewAskResponse("yesButtonClicked")
+		}
 
-			// Check for completion (only on non-partial messages)
-			// When resuming a task, only consider completion_result messages that appeared
-			// AFTER we sent our resume message (ts > completionCutoffTs)
-			if (message.say === "completion_result" || message.ask === "completion_result") {
-				if (isViewTaskOnly || ts > completionCutoffTs) {
-					completionResolve()
-				}
-			} else if (message.say === "error" || message.ask === "api_req_failed") {
-				completionReject(message.text ?? "message.say error || message.ask api_req_failed")
+		// Check for completion (only on non-partial messages)
+		// When resuming a task, only consider completion_result messages that appeared
+		// AFTER we sent our resume message (ts > completionCutoffTs)
+		if (message.say === "completion_result" || message.ask === "completion_result") {
+			if (isViewTaskOnly || ts > completionCutoffTs) {
+				completionResolve()
 			}
+		} else if (message.say === "error" || message.ask === "api_req_failed") {
+			completionReject(message.text ?? "message.say error || message.ask api_req_failed")
 		}
 	}
 
@@ -203,6 +203,7 @@ export async function runPlainTextTask(options: PlainTextTaskOptions): Promise<b
 			await completionPromise
 		}
 	} catch (error) {
+		printPendingPartials()
 		const errMsg = error instanceof Error ? error.message : String(error)
 		if (jsonOutput) {
 			process.stdout.write(JSON.stringify({ type: "error", message: errMsg }) + "\n")
@@ -262,7 +263,6 @@ function handleMessageForPipeMode(
 	message: DiracMessage,
 	verbose: boolean,
 	yolo: boolean,
-	streaming?: { delta?: string; isFirstDelta?: boolean; isLastDelta?: boolean },
 	isUpdate?: boolean,
 ): void {
 	const fullText = message.text ?? ""
@@ -278,18 +278,8 @@ function handleMessageForPipeMode(
 			// Verbose output goes to stderr so it doesn't interfere with piped stdout
 			if (message.say === "task") {
 				process.stderr.write(`${statusPrefix}${fullText}\n`)
-			} else if (message.say === "text" && (fullText || streaming?.isLastDelta)) {
-				if (streaming?.delta !== undefined) {
-					if (streaming.isFirstDelta) {
-						process.stderr.write(`${statusPrefix}${streaming.delta}`)
-					} else {
-						process.stderr.write(streaming.delta)
-					}
-				} else if (streaming?.isLastDelta) {
-					process.stderr.write("\n")
-				} else {
-					process.stderr.write(`${statusPrefix}${fullText}\n`)
-				}
+			} else if (message.say === "text" && fullText) {
+				process.stderr.write(`${statusPrefix}${fullText}\n`)
 			} else if (message.say === "api_req_started" || message.say === "api_req_finished") {
 				const label = message.say === "api_req_started" ? "API request started" : "API request finished"
 				try {
@@ -318,20 +308,10 @@ function handleMessageForPipeMode(
 				}
 			} else if (message.say === "completion_result" && fullText) {
 				process.stderr.write(`${statusPrefix}Completion Result: ${fullText}\n`)
-			} else if (message.say === "reasoning" || reasoning || streaming?.isLastDelta) {
-				const content = streaming?.delta !== undefined ? streaming.delta : (fullText || reasoning)
-				if (content || streaming?.isLastDelta) {
-					if (streaming?.delta !== undefined) {
-						if (streaming.isFirstDelta) {
-							process.stderr.write(`${statusPrefix}Reasoning: ${content}`)
-						} else {
-							process.stderr.write(content)
-						}
-					} else if (streaming?.isLastDelta) {
-						process.stderr.write("\n")
-					} else {
-						process.stderr.write(`${statusPrefix}Reasoning: ${content}\n`)
-					}
+			} else if (message.say === "reasoning" || reasoning) {
+				const content = fullText || reasoning
+				if (content) {
+					process.stderr.write(`${statusPrefix}Reasoning: ${content}\n`)
 				}
 			} else if (message.say === "tool") {
 				process.stderr.write(`${statusPrefix}Tool Call: ${fullText}\n`)

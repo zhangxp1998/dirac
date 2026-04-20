@@ -332,6 +332,10 @@ export class TaskMessenger {
 	}
 
 	async sayAndCreateMissingParamError(toolName: DiracDefaultTool, paramName: string, relPath?: string) {
+		// Clear any partial UI state for this tool
+		await this.removeLastPartialMessageIfExistsWithType("say", "tool")
+		await this.removeLastPartialMessageIfExistsWithType("ask", "tool")
+
 		await this.say(
 			"error",
 			`Dirac tried to use ${toolName}${relPath ? ` for '${relPath.toPosix()}'` : ""} without value for required parameter '${paramName}'. Retrying...`,

@@ -29,6 +29,7 @@ export class SummarizeTaskHandler implements IToolHandler, IPartialBlockHandler 
 	async execute(config: TaskConfig, block: ToolUse): Promise<ToolResponse> {
 		try {
 			const context: string | undefined = block.params.context
+			const requiredFiles: string[] | undefined = block.params.required_files
 
 			// Validate required parameters
 			if (!context) {
@@ -119,9 +120,9 @@ export class SummarizeTaskHandler implements IToolHandler, IPartialBlockHandler 
 			const filePathRegex = /9\.\s*(?:Optional\s+)?Required Files:\s*((?:\n\s*-\s*.+)+)/m
 			const match = context.match(filePathRegex)
 
-			if (match) {
+			const filePaths: string[] = requiredFiles || []
+			if (!requiredFiles && match) {
 				const fileListText = match[1]
-				const filePaths: string[] = []
 				const lines = fileListText.split("\n")
 
 				for (const line of lines) {
@@ -130,7 +131,9 @@ export class SummarizeTaskHandler implements IToolHandler, IPartialBlockHandler 
 						filePaths.push(pathMatch[1].trim())
 					}
 				}
+			}
 
+			if (filePaths.length > 0) {
 				let filesProcessed = 0
 				let filesLoaded = 0
 				let totalChars = 0
@@ -266,7 +269,6 @@ export class SummarizeTaskHandler implements IToolHandler, IPartialBlockHandler 
 					undefined,
 					block.isNativeToolCall,
 				)
-
 			}
 
 			return toolResult
