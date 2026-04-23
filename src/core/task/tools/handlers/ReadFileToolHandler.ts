@@ -68,7 +68,24 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 	}
 
 	private extractLastKnownHashFromHistory(history: DiracStorageMessage[], targetPath: string): string | undefined {
-		// Iterate backwards to find the most recent read_file for this exact path
+		const normalizeForComparison = (value: string): string => {
+			const normalized = path.normalize(value)
+			return normalized.startsWith(`.${path.sep}`) ? normalized.slice(2) : normalized
+		}
+
+		const doesPathMatch = (candidatePath: unknown): candidatePath is string => {
+			if (typeof candidatePath !== "string") {
+				return false
+			}
+
+			return (
+				candidatePath === targetPath ||
+				arePathsEqual(candidatePath, targetPath) ||
+				normalizeForComparison(candidatePath) === normalizeForComparison(targetPath)
+			)
+		}
+
+		// Iterate backwards to find the most recent read_file for this path, allowing for normalized equivalents
 		for (let i = history.length - 1; i >= 0; i--) {
 			const message = history[i]
 
@@ -78,9 +95,10 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 					if (block.type === "tool_use") {
 						const toolUseBlock = block as unknown as DiracAssistantToolUseBlock
 						const input = toolUseBlock.input as any
-						const hasPathMatch =
-							input?.path === targetPath || (Array.isArray(input?.paths) && input.paths.includes(targetPath))
-						if (toolUseBlock.name === this.name && hasPathMatch) {
+						const matchingPath = [input?.path, ...(Array.isArray(input?.paths) ? input.paths : [])].find((candidatePath) =>
+							doesPathMatch(candidatePath),
+						)
+						if (toolUseBlock.name === this.name && matchingPath) {
 							const toolUseId = toolUseBlock.id
 
 							// The tool_result is almost always in the immediately following 'user' message
@@ -105,8 +123,8 @@ export class ReadFileToolHandler implements IFullyManagedTool {
 										// Match the exact hash string we output, considering potentially multiple files
 										// If it's a multi-file read, we need to find the specific section for this path
 										let sectionText = text
-										if (text.includes(`--- ${targetPath} ---`)) {
-											const parts = text.split(`--- ${targetPath} ---`)
+										if (text.includes(`--- ${matchingPath} ---`)) {
+											const parts = text.split(`--- ${matchingPath} ---`)
 											if (parts.length > 1) {
 												sectionText = parts[1].split("\n--- ")[0]
 											}

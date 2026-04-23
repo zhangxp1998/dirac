@@ -548,6 +548,8 @@ async function initializeCli(options: InitOptions): Promise<CliContext> {
 	const { StateManager } = await import("@/core/storage/StateManager")
 	const { ErrorService } = await import("@/services/error/ErrorService")
 	const { telemetryService } = await import("@/services/telemetry")
+	const { SymbolIndexService } = await import("@/services/symbol-index/SymbolIndexService")
+
 
 	const workspacePath = options.cwd || process.cwd()
 	setRuntimeHooksDir(options.hooksDir)
@@ -613,6 +615,15 @@ async function initializeCli(options: InitOptions): Promise<CliContext> {
 
 	await telemetryService.captureExtensionActivated()
 	await telemetryService.captureHostEvent("dirac_cli", "initialized")
+
+	// =============== Symbol Index Service ===============
+	// Initialize symbol index for the project in background
+	SymbolIndexService.getInstance()
+		.initialize(workspacePath)
+		.catch((error) => {
+			Logger.error("[Dirac] Failed to initialize SymbolIndexService:", error)
+		})
+
 
 	const ctx = { extensionContext, dataDir: DATA_DIR, extensionDir: EXTENSION_DIR, workspacePath, controller }
 	activeContext = ctx
