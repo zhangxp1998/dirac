@@ -8,7 +8,7 @@ import { fetch } from "@/shared/net"
 import { ApiHandler, CommonApiHandlerOptions } from "../"
 import { withRetry } from "../retry"
 import { convertToOpenAiMessages } from "../transform/openai-format"
-import { addReasoningContent } from "../transform/r1-format"
+import { convertToDeepSeekMessages } from "../transform/r1-format"
 import { normalizeOpenaiReasoningEffort } from "@shared/storage/types"
 import { ApiStream } from "../transform/stream"
 import { getOpenAIToolParams, ToolCallProcessor } from "../transform/tool-call-processor"
@@ -89,17 +89,17 @@ export class DeepSeekHandler implements ApiHandler {
 		const requestedEffort = normalizeOpenaiReasoningEffort(this.options.reasoningEffort)
 		const isThinkingEnabled = supportsReasoning && requestedEffort !== "none"
 		const useReasoningFormat = isR1 || isThinkingEnabled
-		const shouldAddReasoningContent = isR1 || supportsReasoning
-		const convertedMessages = convertToOpenAiMessages(messages)
 
-		const openAiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = shouldAddReasoningContent
-			? [{ role: "system", content: systemPrompt }, ...addReasoningContent(convertedMessages, messages)]
-			: [{ role: "system", content: systemPrompt }, ...convertedMessages]
+		const shouldAddReasoningContent = isR1 || supportsReasoning
+
+		const openAiMessages = shouldAddReasoningContent
+			? convertToDeepSeekMessages(messages, systemPrompt)
+			: [{ role: "system", content: systemPrompt }, ...convertToOpenAiMessages(messages)]
 
 		const stream = await client.chat.completions.create({
 			model: model.id,
 			max_completion_tokens: model.info.maxTokens,
-			messages: openAiMessages,
+			messages: openAiMessages as any,
 			stream: true,
 			stream_options: { include_usage: true },
 			...(supportsReasoning && !isR1

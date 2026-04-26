@@ -1,19 +1,17 @@
 import { Anthropic } from "@anthropic-ai/sdk"
 import OpenAI from "openai"
-import { DiracAssistantThinkingBlock, DiracStorageMessage } from "@/shared/messages/content"
+import { DiracAssistantThinkingBlock, DiracStorageMessage, DiracUserToolResultContentBlock } from "@/shared/messages/content"
 
 /**
  * DeepSeek Reasoner message format with reasoning_content support.
  */
-export type DeepSeekReasonerMessage = OpenAI.Chat.ChatCompletionMessageParam & {
-	reasoning_content?: string
-}
+export type DeepSeekReasonerMessage =
+	| OpenAI.Chat.ChatCompletionSystemMessageParam
+	| OpenAI.Chat.ChatCompletionUserMessageParam
+	| (OpenAI.Chat.ChatCompletionAssistantMessageParam & { reasoning_content?: string })
+	| OpenAI.Chat.ChatCompletionToolMessageParam
+	| OpenAI.Chat.ChatCompletionFunctionMessageParam
 
-/**
- * Adds reasoning_content to OpenAI messages for DeepSeek Reasoner.
- * Per DeepSeek API: reasoning_content should be passed back during tool calling in the same turn,
- * and omitted when starting a new turn.
- */
 export function addReasoningContent(
 	openAiMessages: OpenAI.Chat.ChatCompletionMessageParam[],
 	originalMessages: DiracStorageMessage[],
@@ -47,33 +45,138 @@ export function addReasoningContent(
 		}
 	}
 
-	// Add reasoning_content only to assistant messages in current turn
+	// Add reasoning_content to assistant messages
 	let aiIdx = 0
 	return openAiMessages.map((msg, i): DeepSeekReasonerMessage => {
 		if (msg.role === "assistant") {
 			const thinking = thinkingByIndex.get(aiIdx++)
 			if (thinking) {
-				const isContentEmpty = !msg.content || (typeof msg.content === "string" && msg.content.trim() === "")
-				const hasToolCalls = !!(msg as any).tool_calls?.length
-				// Add reasoning_content if it's the current turn OR if the message would otherwise be empty
-				// (to avoid 400 errors from providers like Moonshot/DeepSeek)
-				if (i >= lastUserIndex || hasToolCalls || isContentEmpty) {
-					return { ...msg, reasoning_content: thinking }
-				}
+				// Always add reasoning_content if it exists to maintain the reasoning chain,
+				// which is required by DeepSeek when tool calls are involved in the conversation.
+				// DeepSeek docs state that it will be ignored if not needed, so it's safe to always include.
+				return { ...msg, reasoning_content: thinking } as DeepSeekReasonerMessage
 			}
 		}
-		return msg
+		return msg as DeepSeekReasonerMessage
 	})
 }
 
 /**
- * Converts Anthropic messages to OpenAI format and merges consecutive messages with the same role.
- * This is required for DeepSeek Reasoner which does not support successive messages with the same role.
- * DeepSeek highly recommends using 'user' role instead of 'system' role for optimal performance.
- *
- * @param messages Array of Anthropic messages
- * @returns Array of OpenAI messages where consecutive messages with the same role are merged together
+ * Converts Dirac messages to DeepSeek format, merging consecutive messages with the same role
+ * and adding reasoning_content from thinking blocks.
  */
+export function convertToDeepSeekMessages(
+	messages: DiracStorageMessage[],
+	systemPrompt: string,
+): DeepSeekReasonerMessage[] {
+	const openAiMessages: DeepSeekReasonerMessage[] = [{ role: "system", content: systemPrompt }]
+
+	for (const msg of messages) {
+		const lastMsg = openAiMessages[openAiMessages.length - 1]
+
+		// Extract thinking and text content
+		let thinking = ""
+		let text = ""
+		const toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[] = []
+
+		if (typeof msg.content === "string") {
+			text = msg.content
+		} else if (Array.isArray(msg.content)) {
+			msg.content.forEach((part) => {
+				if (part.type === "text") {
+					text += (text ? "\n" : "") + part.text
+				} else if (part.type === "thinking") {
+					thinking += (thinking ? "\n" : "") + part.thinking
+				} else if (part.type === "tool_use") {
+					toolCalls.push({
+						id: part.id,
+						type: "function",
+						function: {
+							name: part.name,
+							arguments: JSON.stringify((part as any).input || (part as any).params || {}),
+						},
+					})
+				}
+			})
+		}
+
+		if (msg.role === "user") {
+			// For user messages, we handle tool results and text/images
+			if (Array.isArray(msg.content)) {
+				const toolResults = msg.content.filter((p): p is DiracUserToolResultContentBlock => p.type === "tool_result")
+				const nonToolParts = msg.content.filter((p) => p.type !== "tool_result")
+
+				// Add tool results first
+				toolResults.forEach((tr) => {
+					openAiMessages.push({
+						role: "tool",
+						tool_call_id: tr.tool_use_id,
+						content: typeof tr.content === "string" ? tr.content : JSON.stringify(tr.content),
+					} as DeepSeekReasonerMessage)
+				})
+
+				// Add non-tool parts as a user message
+				if (nonToolParts.length > 0) {
+					const content = nonToolParts.map((p) => {
+						if (p.type === "text") return { type: "text", text: p.text }
+						if (p.type === "image") return { type: "image_url", image_url: { url: p.source.type === "base64" ? `data:${p.source.media_type};base64,${p.source.data}` : (p.source as any).url } }
+						return { type: "text", text: "" }
+					}) as OpenAI.Chat.ChatCompletionUserMessageParam["content"]
+
+					if (lastMsg && lastMsg.role === "user") {
+						if (typeof lastMsg.content === "string") {
+							lastMsg.content = [{ type: "text", text: lastMsg.content }, ...(content as any)]
+						} else if (Array.isArray(lastMsg.content)) {
+							lastMsg.content.push(...(content as any))
+						}
+					} else {
+						openAiMessages.push({ role: "user", content } as DeepSeekReasonerMessage)
+					}
+				}
+			} else {
+				if (lastMsg && lastMsg.role === "user") {
+					if (typeof lastMsg.content === "string") {
+						lastMsg.content += "\n" + msg.content
+					} else {
+						lastMsg.content.push({ type: "text", text: msg.content as string })
+					}
+				} else {
+					openAiMessages.push({ role: "user", content: msg.content as string } as DeepSeekReasonerMessage)
+				}
+			}
+		} else if (msg.role === "assistant") {
+			if (lastMsg && lastMsg.role === "assistant") {
+				// Merge with last assistant message
+				if (text) {
+					if (typeof lastMsg.content === "string") {
+						lastMsg.content += "\n" + text
+					} else if (Array.isArray(lastMsg.content)) {
+						lastMsg.content.push({ type: "text", text })
+					} else if (lastMsg.content === null) {
+						lastMsg.content = text
+					}
+				}
+				if (thinking) {
+					lastMsg.reasoning_content = (lastMsg.reasoning_content ? lastMsg.reasoning_content + "\n" : "") + thinking
+				}
+				if (toolCalls.length > 0) {
+					lastMsg.tool_calls = [...(lastMsg.tool_calls || []), ...toolCalls]
+				}
+			} else {
+				openAiMessages.push({
+					role: "assistant",
+					content: text || (toolCalls.length > 0 ? null : ""),
+					reasoning_content: thinking || undefined,
+					tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+				} as DeepSeekReasonerMessage)
+			}
+		}
+	}
+
+	return openAiMessages
+}
+
+
 export function convertToR1Format(messages: Anthropic.Messages.MessageParam[]): OpenAI.Chat.ChatCompletionMessageParam[] {
 	return messages.reduce<OpenAI.Chat.ChatCompletionMessageParam[]>((merged, message) => {
 		const lastMessage = merged[merged.length - 1]

@@ -1733,8 +1733,8 @@ ${notice}`
 		return this.contextLoader.loadContext(userContent, includeFileDetails, useCompactPrompt)
 	}
 
-	async processNativeToolCalls(assistantTextOnly: string, toolBlocks: ToolUse[]) {
-		return this.responseProcessor.processNativeToolCalls(assistantTextOnly, toolBlocks)
+	async processNativeToolCalls(assistantTextOnly: string, toolBlocks: ToolUse[], isStreamComplete: boolean = false) {
+		return this.responseProcessor.processNativeToolCalls(assistantTextOnly, toolBlocks, isStreamComplete)
 	}
 
 	async getEnvironmentDetails(includeFileDetails = false): Promise<string> {

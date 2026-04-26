@@ -96,15 +96,10 @@ export class ResponseProcessor {
 
 		this.dependencies.taskState.didCompleteReadingStream = true
 
-		const partialBlocks = this.dependencies.taskState.assistantMessageContent.filter((block) => block.partial)
-		partialBlocks.forEach((block) => {
-			block.partial = false
-		})
-
 		const partialToolBlocks = params.toolUseHandler
 			.getPartialToolUsesAsContent()
 			?.map((block: any) => ({ ...block, partial: false }))
-		await this.processNativeToolCalls(params.assistantTextOnly, partialToolBlocks)
+		await this.processNativeToolCalls(params.assistantTextOnly, partialToolBlocks, true)
 
 		await this.presentAssistantMessage()
 
@@ -314,24 +309,34 @@ export class ResponseProcessor {
 		}
 	}
 
-	public async processNativeToolCalls(assistantTextOnly: string, toolBlocks: ToolUse[] = []) {
+	public async processNativeToolCalls(
+		assistantTextOnly: string,
+		toolBlocks: ToolUse[] = [],
+		isStreamComplete: boolean = false,
+	) {
 		const prevLength = this.dependencies.taskState.assistantMessageContent.length
 
 		const parsedBlocks = parseAssistantMessageV2(assistantTextOnly)
-		parsedBlocks.forEach((block) => {
-			if (block.type === "text" || block.type === "reasoning") {
+		if (isStreamComplete) {
+			parsedBlocks.forEach((block) => {
 				block.partial = false
-			}
-		})
+			})
+		}
 
 		const diracMessages = this.dependencies.messageStateHandler.getDiracMessages()
-		const lastMessage = diracMessages.at(-1)
+		
+		// Find the last partial say message that is text or reasoning
+		let lastPartialMessageIndex = -1
+		for (let i = diracMessages.length - 1; i >= 0; i--) {
+			const msg = diracMessages[i]
+			if (msg.partial && msg.type === "say" && (msg.say === "text" || msg.say === "reasoning")) {
+				lastPartialMessageIndex = i
+				break
+			}
+		}
 
-		if (
-			lastMessage?.partial &&
-			lastMessage.type === "say" &&
-			(lastMessage.say === "text" || lastMessage.say === "reasoning")
-		) {
+		if (lastPartialMessageIndex !== -1) {
+			const lastMessage = diracMessages[lastPartialMessageIndex]
 			const correspondingBlock = [...parsedBlocks].reverse().find((b) => b.type === lastMessage.say)
 			if (correspondingBlock) {
 				const content =
@@ -341,7 +346,7 @@ export class ResponseProcessor {
 							? correspondingBlock.reasoning
 							: ""
 				lastMessage.text = content
-				lastMessage.partial = false
+				lastMessage.partial = correspondingBlock.partial
 				await this.dependencies.messageStateHandler.saveDiracMessagesAndUpdateHistory()
 				const protoMessage = convertDiracMessageToProto(lastMessage)
 				await sendPartialMessageEvent(protoMessage)
