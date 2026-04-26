@@ -23,6 +23,7 @@ import { StaticRobotFrame } from "./AsciiMotionCli"
 import { BedrockCustomModelFlow } from "./BedrockCustomModelFlow"
 import { type BedrockConfig, BedrockSetup } from "./BedrockSetup"
 import { ImportView } from "./ImportView"
+import { GithubAuthView } from "./GithubAuthView"
 import { CUSTOM_MODEL_ID, getDefaultModelId, hasModelPicker, ModelPicker } from "./ModelPicker"
 import { getProviderLabel } from "./ProviderPicker"
 
@@ -39,6 +40,7 @@ type AuthStep =
 	| "bedrock"
 	| "import"
 	| "bedrock_custom"
+	| "github_copilot_auth"
 
 interface AuthViewProps {
 	controller: any
@@ -169,6 +171,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 
 		// Add OpenAI Codex option for ChatGPT subscribers
 		items.push({ label: "Sign in with ChatGPT Subscription", value: "openai_codex_auth" })
+		items.push({ label: "Sign in with GitHub Copilot", value: "github_copilot_auth" })
 
 		// Add import options if detected
 		if (importSources.codex) {
@@ -267,6 +270,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 			} else if (value === "openai_codex_auth") {
 				setStep("openai_codex_auth")
 				startOpenAiCodexAuth()
+			} else if (value === "github_copilot_auth") {
+				setStep("github_copilot_auth")
 			} else if (value === "configure_byo") {
 				setStep("provider")
 			} else if (value === "import_codex") {
@@ -286,6 +291,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 			if (value === "openai-codex") {
 				setStep("openai_codex_auth")
 				startOpenAiCodexAuth()
+			} else if (value === "github-copilot") {
+				setStep("github_copilot_auth")
 			} else if (value === "bedrock") {
 				setStep("bedrock")
 			} else {
@@ -487,6 +494,9 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 				openAiCodexOAuthManager.cancelAuthorizationFlow()
 				setStep("menu")
 				break
+			case "github_copilot_auth":
+				setStep("menu")
+				break
 			case "bedrock":
 				setBedrockConfig(null)
 				setStep("provider")
@@ -646,6 +656,20 @@ export const AuthView: React.FC<AuthViewProps> = ({ controller, onComplete, onEr
 					</Box>
 				)
 
+			case "github_copilot_auth":
+				return (
+					<GithubAuthView
+						onCancel={goBack}
+						onComplete={async () => {
+							await applyProviderConfig({ providerId: "github-copilot", controller })
+							const stateManager = StateManager.get()
+							stateManager.setGlobalState("welcomeViewCompleted", true)
+							await stateManager.flushPendingState()
+							setSelectedProvider("github-copilot")
+							setStep("success")
+						}}
+					/>
+				)
 
 			case "bedrock":
 				return (

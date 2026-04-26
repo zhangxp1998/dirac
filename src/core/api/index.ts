@@ -39,6 +39,7 @@ import { TogetherHandler } from "./providers/together"
 import { VercelAIGatewayHandler } from "./providers/vercel-ai-gateway"
 import { VertexHandler } from "./providers/vertex"
 import { VsCodeLmHandler } from "./providers/vscode-lm"
+import { GithubCopilotHandler } from "./providers/github-copilot"
 import { WandbHandler } from "./providers/wandb"
 import { XAIHandler } from "./providers/xai"
 import { ZAiHandler } from "./providers/zai"
@@ -266,6 +267,11 @@ function createHandlerForProvider(
 				onRetryAttempt: options.onRetryAttempt,
 				vsCodeLmModelSelector:
 					mode === "plan" ? options.planModeVsCodeLmModelSelector : options.actModeVsCodeLmModelSelector,
+			})
+		case "github-copilot":
+			return new GithubCopilotHandler({
+				onRetryAttempt: options.onRetryAttempt,
+				apiModelId: mode === "plan" ? options.planModeApiModelId : options.actModeApiModelId,
 			})
 		case "litellm":
 			return new LiteLlmHandler({

@@ -114,6 +114,9 @@ const ApiOptions = ({
 		if (PLATFORM_CONFIG.type !== PlatformType.VSCODE) {
 			// Don't include VS Code LM API for non-VSCode platforms
 			providers = providers.filter((option) => option.value !== "vscode-lm")
+		} else {
+			// Don't include native GitHub Copilot for VSCode (use vscode-lm instead)
+			providers = providers.filter((option) => option.value !== "github-copilot")
 		}
 
 		// Filter by remote config if remoteConfiguredProviders is set

@@ -15,7 +15,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { buildApiHandler } from "@/core/api"
 import type { Controller } from "@/core/controller"
 import { StateManager } from "@/core/storage/StateManager"
+import { Logger } from "@/shared/services/Logger"
 import { openAiCodexOAuthManager } from "@/integrations/openai-codex/oauth"
+import { githubCopilotAuthManager } from "@/integrations/github-copilot/auth"
 import { openExternal } from "@/utils/env"
 import { supportsReasoningEffortForModel } from "@/utils/model-utils"
 import { version as CLI_VERSION } from "../../package.json"
@@ -135,6 +137,15 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 	const [pendingProvider, setPendingProvider] = useState<string | null>(null)
 	const [isConfiguringBedrock, setIsConfiguringBedrock] = useState(false)
 	const [isWaitingForCodexAuth, setIsWaitingForCodexAuth] = useState(false)
+	const [isWaitingForGithubAuth, setIsWaitingForGithubAuth] = useState(false)
+	const [githubAuthData, setGithubAuthData] = useState<{
+		verification_uri: string
+		user_code: string
+		device_code: string
+		interval: number
+	} | null>(null)
+	const [githubIsAuthenticated, setGithubIsAuthenticated] = useState(false)
+	const [githubEmail, setGithubEmail] = useState<string | undefined>(undefined)
 	const [codexAuthUrl, setCodexAuthUrl] = useState<string | null>(null)
 	const [codexAuthError, setCodexAuthError] = useState<string | null>(null)
 	const [openAiCodexIsAuthenticated, setOpenAiCodexIsAuthenticated] = useState(false)
@@ -213,7 +224,20 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 			}
 		}
 		updateAuthStatus()
-	}, [provider, isWaitingForCodexAuth])
+		updateAuthStatus()
+
+		const updateGithubAuthStatus = async () => {
+			const isAuthenticated = await githubCopilotAuthManager.isAuthenticated()
+			setGithubIsAuthenticated(isAuthenticated)
+			if (isAuthenticated) {
+				const email = await githubCopilotAuthManager.getEmail()
+				setGithubEmail(email ?? undefined)
+			} else {
+				setGithubEmail(undefined)
+			}
+		}
+		updateGithubAuthStatus()
+	}, [provider, isWaitingForCodexAuth, isWaitingForGithubAuth])
 
 
 	const { actModelId, planModelId } = useMemo(() => {
@@ -271,6 +295,32 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 								{
 									key: "codexSignOut",
 									label: "Sign Out",
+									type: "action" as const,
+									value: "",
+								},
+							]
+						: []),
+					...(provider === "github-copilot" && githubIsAuthenticated
+						? [
+								{
+									key: "githubEmail",
+									label: "Authenticated as",
+									type: "readonly" as const,
+									value: githubEmail || "GitHub User",
+								},
+								{
+									key: "githubSignOut",
+									label: "Sign Out",
+									type: "action" as const,
+									value: "",
+								},
+							]
+						: []),
+					...(provider === "github-copilot" && !githubIsAuthenticated
+						? [
+								{
+									key: "githubSignIn",
+									label: "Sign In to GitHub Copilot",
 									type: "action" as const,
 									value: "",
 								},
@@ -626,6 +676,20 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 			return
 		}
 
+		if (item.key === "githubSignOut") {
+			githubCopilotAuthManager.clearCredentials().then(() => {
+				setGithubIsAuthenticated(false)
+				setGithubEmail(undefined)
+				rebuildTaskApi()
+			})
+			return
+		}
+
+		if (item.key === "githubSignIn") {
+			startGithubAuth()
+			return
+		}
+
 
 		if (item.key === "actThinkingEnabled") {
 			setActThinkingEnabled(newValue)
@@ -855,8 +919,40 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 		}
 	}, [controller])
 
+
+	const startGithubAuth = useCallback(async () => {
+		try {
+			setIsWaitingForGithubAuth(true)
+			const data = await githubCopilotAuthManager.initiateDeviceFlow()
+			setGithubAuthData(data)
+			await openExternal(data.verification_uri)
+			await githubCopilotAuthManager.pollForToken(data.device_code, data.interval)
+			await applyProviderConfig({ providerId: "github-copilot", controller })
+			setProvider("github-copilot")
+			refreshModelIds()
+			setIsWaitingForGithubAuth(false)
+			setGithubAuthData(null)
+		} catch (error) {
+			setIsWaitingForGithubAuth(false)
+			setGithubAuthData(null)
+			Logger.error("[github-copilot-auth] Auth failed:", error)
+		}
+	}, [controller, refreshModelIds])
+
 	const handleProviderSelect = useCallback(
 		async (providerId: string) => {
+			if (providerId === "github-copilot") {
+				setIsPickingProvider(false)
+				const isAuthenticated = await githubCopilotAuthManager.isAuthenticated()
+				if (!isAuthenticated) {
+					startGithubAuth()
+				} else {
+					await applyProviderConfig({ providerId, controller })
+					setProvider(providerId)
+					refreshModelIds()
+				}
+				return
+			}
 			// Special handling for Dirac - uses OAuth (but skip if already logged in)
 			if (providerId === "dirac") {
 				setIsPickingProvider(false)
@@ -1054,6 +1150,14 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 				return
 			}
 
+
+			if (isWaitingForGithubAuth) {
+				if (key.escape) {
+					setIsWaitingForGithubAuth(false)
+					setGithubAuthData(null)
+				}
+				return
+			}
 			// Codex OAuth error mode - any key to dismiss
 			if (codexAuthError) {
 				setCodexAuthError(null)
@@ -1189,6 +1293,38 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 					)}
 					<Box marginTop={1}>
 						<Text color="gray">Requires ChatGPT Plus, Pro, or Team subscription.</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text color="gray">Esc to cancel</Text>
+					</Box>
+				</Box>
+			)
+		}
+
+
+		if (isWaitingForGithubAuth && githubAuthData) {
+			return (
+				<Box flexDirection="column">
+					<Box>
+						<Text color={COLORS.primaryBlue}>
+							<Spinner type="dots" />
+						</Text>
+						<Text color="white"> Waiting for GitHub authorization...</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text color="white">1. Open: </Text>
+						<Text color="cyan" bold underline>
+							{githubAuthData.verification_uri}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text color="white">2. Enter code: </Text>
+						<Text color="yellow" bold>
+							{githubAuthData.user_code}
+						</Text>
+					</Box>
+					<Box marginTop={1}>
+						<Text color="gray">The browser should have opened automatically.</Text>
 					</Box>
 					<Box marginTop={1}>
 						<Text color="gray">Esc to cancel</Text>
@@ -1387,6 +1523,7 @@ export const SettingsPanelContent: React.FC<SettingsPanelContentProps> = ({
 		isWaitingForCodexAuth ||
 		!!codexAuthError ||
 		isBedrockCustomFlow ||
+		isWaitingForGithubAuth ||
 		isEditing
 
 	return (

@@ -57,6 +57,10 @@
 			"label": "SAP AI Core"
 		},
 		{
+			"value": "github-copilot",
+			"label": "GitHub Copilot (Native)"
+		},
+		{
 			"value": "mistral",
 			"label": "Mistral"
 		},

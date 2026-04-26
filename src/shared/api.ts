@@ -19,6 +19,7 @@ export type ApiProvider =
 	| "qwen-code"
 	| "doubao"
 	| "mistral"
+	| "github-copilot"
 	| "vscode-lm"
 	| "dirac"
 	| "litellm"
@@ -62,6 +63,7 @@ export const ALL_PROVIDERS: ApiProvider[] = [
 	"qwen-code",
 	"doubao",
 	"mistral",
+	"github-copilot",
 	"vscode-lm",
 	"dirac",
 	"litellm",
@@ -1120,7 +1122,7 @@ export const deepSeekModels = {
 		inputPrice: 0,
 		outputPrice: 0.28,
 		cacheWritesPrice: 0.14,
-		cacheReadsPrice: 0.028,
+		cacheReadsPrice: 0.0028,
 	},
 	"deepseek-v4-pro": {
 		maxTokens: 384_000,
@@ -1133,7 +1135,7 @@ export const deepSeekModels = {
 		inputPrice: 0,
 		outputPrice: 3.48,
 		cacheWritesPrice: 1.74,
-		cacheReadsPrice: 0.145,
+		cacheReadsPrice: 0.0145,
 	},
 	"deepseek-chat": {
 		maxTokens: 8_000,
