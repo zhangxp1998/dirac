@@ -212,7 +212,7 @@ const USER_SETTINGS_FIELDS = {
 		default: DEFAULT_BROWSER_SETTINGS as BrowserSettings,
 		transform: (v: any) => ({ ...DEFAULT_BROWSER_SETTINGS, ...v }),
 	},
-	telemetrySetting: { default: "unset" as TelemetrySetting },
+	telemetrySetting: { default: "disabled" as TelemetrySetting },
 	planActSeparateModelsSetting: { default: false as boolean, isComputed: true },
 	enableCheckpointsSetting: { default: true as boolean },
 	shellIntegrationTimeout: { default: 4000 as number },
@@ -235,7 +235,7 @@ const USER_SETTINGS_FIELDS = {
 	doubleCheckCompletionEnabled: { default: false as boolean },
 
 	// OpenTelemetry configuration
-	openTelemetryEnabled: { default: true as boolean },
+	openTelemetryEnabled: { default: false as boolean },
 	openTelemetryMetricsExporter: { default: undefined as string | undefined },
 	openTelemetryLogsExporter: { default: undefined as string | undefined },
 	openTelemetryOtlpProtocol: { default: "http/json" as string | undefined },

@@ -39,8 +39,8 @@ const useDevEnv = process.env.IS_DEV === "true" || process.env.DIRAC_ENVIRONMENT
 export const diracTelemetryConfig: DiracTelemetryClientConfig = {
 	apiKey: BUILD_CONSTANTS.TELEMETRY_SERVICE_API_KEY || "dd5e5ac0c15eb75402dd85b4ca616da06aed2e9c7c39990923e7710129ddc238",
 	errorTrackingApiKey: BUILD_CONSTANTS.ERROR_SERVICE_API_KEY || "dirac-error-key",
-	host: "https://dirac.run/v1/event",
-	uiHost: useDevEnv ? "https://us.i.posthog.com" : "https://us.posthog.com",
+	host: "",
+	uiHost: "",
 	enableErrorAutocapture: BUILD_CONSTANTS.ENABLE_ERROR_AUTOCAPTURE === "true",
 }
 
