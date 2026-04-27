@@ -53,6 +53,9 @@
 			],
 			"@utils/*": [
 				"./src/utils/*"
+			],
+			"@mistralai/mistralai/models/components": [
+				"./node_modules/@mistralai/mistralai/esm/models/components/index.d.ts"
 			]
 		}
 	},

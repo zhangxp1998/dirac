@@ -1,4 +1,3 @@
-import { parseKeyPairsIntoRecord } from "@opentelemetry/core"
 import { BUILD_CONSTANTS } from "@/shared/constants"
 
 export interface OpenTelemetryClientConfig {
@@ -95,6 +94,26 @@ export interface OpenTelemetryClientValidConfig extends OpenTelemetryClientConfi
 }
 
 const isTestEnv = process.env.E2E_TEST === "true" || process.env.IS_TEST === "true"
+
+function parseKeyPairsIntoRecord(rawHeaders: string): Record<string, string> {
+	return rawHeaders
+		.split(",")
+		.map((entry) => entry.trim())
+		.filter(Boolean)
+		.reduce<Record<string, string>>((headers, entry) => {
+			const separatorIndex = entry.indexOf("=")
+			if (separatorIndex === -1) {
+				return headers
+			}
+
+			const key = entry.slice(0, separatorIndex).trim()
+			const value = entry.slice(separatorIndex + 1).trim()
+			if (key) {
+				headers[key] = value
+			}
+			return headers
+		}, {})
+}
 
 export function remoteConfigToOtelConfig(settings: any): OpenTelemetryClientConfig {
 	return {
